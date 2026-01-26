@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Activity, LogIn, UserPlus, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,7 +12,6 @@ export default function Home() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     checkUser();
@@ -21,25 +19,19 @@ export default function Home() {
 
   async function checkUser() {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) throw sessionError;
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (session) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("role")
           .eq("id", session.user.id)
           .single();
 
         if (profile) {
-          router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
+          // Use window.location for hard redirect to ensure middleware picks up the session cookie
+          window.location.replace(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
           return;
-        } else if (profileError) {
-          console.error("Profile check failed:", profileError);
-          if (profileError.code === "PGRST116") {
-            alert("Session found but your profile is incomplete. Please try signing out and registering again.");
-          }
         }
       }
     } catch (err) {
@@ -66,10 +58,9 @@ export default function Home() {
             .single();
 
           if (profile) {
-            router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-            return;
+            window.location.replace(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
           } else {
-            alert("Profile not found. If you just signed up, wait a moment.");
+            alert("Profile not found. If you just signed up, please wait a moment.");
           }
         }
       } else {
@@ -92,13 +83,12 @@ export default function Home() {
 
           if (insertError) {
             console.error("Profile creation error:", insertError);
-            alert("Critical Error: Profile could not be created. Please try again or contact support.");
+            alert("Error creating profile. Please try again.");
             return;
           }
 
           if (data.session) {
-            router.push(role === "pharmacist" ? "/pharmacy" : "/patient");
-            return;
+            window.location.replace(role === "pharmacist" ? "/pharmacy" : "/patient");
           } else {
             alert("Account created! Please sign in.");
             setIsLogin(true);

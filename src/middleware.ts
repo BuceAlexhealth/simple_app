@@ -37,33 +37,35 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // Protect routes
     const isAuthRoute = request.nextUrl.pathname === "/"
     const isProtectedRoute =
         request.nextUrl.pathname.startsWith("/patient") ||
         request.nextUrl.pathname.startsWith("/pharmacy")
 
+    // 1. If trying to access protected route without user -> Redirect to login
     if (isProtectedRoute && !user) {
         return NextResponse.redirect(new URL("/", request.url))
     }
 
-    // Optional: Redirect logged in users away from home page login
-    // if (isAuthRoute && user) {
-    //   return NextResponse.redirect(new URL("/patient", request.url)) // Or logic to check role
-    // }
+    // 2. If at login page and ALREADY logged in -> Auto-redirect to dashboard based on role
+    if (isAuthRoute && user) {
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single()
+
+        if (profile) {
+            const dest = profile.role === "pharmacist" ? "/pharmacy" : "/patient"
+            return NextResponse.redirect(new URL(dest, request.url))
+        }
+    }
 
     return response
 }
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 }
