@@ -20,20 +20,33 @@ export default function Home() {
   }, []);
 
   async function checkUser() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (profile) {
-        router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-      } else {
-        setInitialLoading(false);
+      if (sessionError) throw sessionError;
+
+      if (session) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Profile fetch error:", profileError);
+          setInitialLoading(false);
+          return;
+        }
+
+        if (profile) {
+          router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
+          // Note: Keep initialLoading true during push to avoid flicker
+          return;
+        }
       }
-    } else {
+    } catch (err) {
+      console.error("CheckUser error:", err);
+    } finally {
       setInitialLoading(false);
     }
   }
@@ -42,49 +55,56 @@ export default function Home() {
     e.preventDefault();
     setLoading(true);
 
-    if (isLogin) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        alert(error.message);
-        setLoading(false);
-      } else if (data.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .single();
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          alert(error.message);
+        } else if (data.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .single();
 
-        if (profile) {
-          router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
+          if (profile) {
+            router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
+            return; // Stay loading until redirected
+          } else {
+            alert("Profile not found. Please contact support.");
+          }
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, role: role }
+          }
+        });
+
+        if (error) {
+          alert(error.message);
+        } else if (data.user) {
+          await supabase.from("profiles").insert([{
+            id: data.user.id,
+            role: role,
+            full_name: fullName
+          }]);
+
+          if (data.session) {
+            router.push(role === "pharmacist" ? "/pharmacy" : "/patient");
+            return;
+          } else {
+            alert("Account created! Please sign in.");
+            setIsLogin(true);
+          }
         }
       }
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName, role: role }
-        }
-      });
-
-      if (error) {
-        alert(error.message);
-        setLoading(false);
-      } else if (data.user) {
-        await supabase.from("profiles").insert([{
-          id: data.user.id,
-          role: role,
-          full_name: fullName
-        }]);
-
-        if (data.session) {
-          router.push(role === "pharmacist" ? "/pharmacy" : "/patient");
-        } else {
-          alert("Account created! Please sign in.");
-          setIsLogin(true);
-          setLoading(false);
-        }
-      }
+    } catch (err: any) {
+      alert("An unexpected error occurred: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,70 +112,77 @@ export default function Home() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--app-bg)]">
         <Loader2 className="w-12 h-12 animate-spin text-[var(--primary)] mb-4" />
-        <p className="text-slate-500 font-medium">Verifying session...</p>
+        <p className="text-slate-500 font-medium tracking-tight">Verifying secure session...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[var(--app-bg)]">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-[var(--border)]">
-        <div className="text-center mb-8">
-          <div className="bg-[var(--primary)] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg rotate-3">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-[var(--app-bg)] text-[var(--text-main)]">
+      <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-[var(--border)] relative overflow-hidden">
+        {/* Abstract Background Element */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
+
+        <div className="text-center mb-8 relative z-10">
+          <div className="bg-[var(--primary)] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl rotate-3 transform hover:rotate-0 transition-transform duration-300">
             <Activity className="text-white w-10 h-10" />
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">PharmaPlus</h1>
-          <p className="text-[var(--text-muted)] text-sm">Professional Pharmacy Management</p>
+          <h1 className="text-2xl font-black tracking-tight">PharmaPlus</h1>
+          <p className="text-[var(--text-muted)] text-sm font-medium mt-1">Professional Healthcare Portal</p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-4 relative z-10">
           {!isLogin && (
-            <>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Full Name</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Register as</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRole("patient")}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${role === "patient" ? "bg-indigo-50 border-[var(--primary)] text-[var(--primary)]" : "bg-white border-[var(--border)]"}`}
-                  >
-                    Patient
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole("pharmacist")}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${role === "pharmacist" ? "bg-indigo-50 border-[var(--primary)] text-[var(--primary)]" : "bg-white border-[var(--border)]"}`}
-                  >
-                    Pharmacist
-                  </button>
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Enter your name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Account Type</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRole("patient")}
+                      className={`flex-1 py-3 rounded-2xl text-xs font-bold border-2 transition-all ${role === "patient" ? "bg-indigo-50 border-[var(--primary)] text-[var(--primary)]" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
+                    >
+                      Patient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole("pharmacist")}
+                      className={`flex-1 py-3 rounded-2xl text-xs font-bold border-2 transition-all ${role === "pharmacist" ? "bg-indigo-50 border-[var(--primary)] text-[var(--primary)]" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
+                    >
+                      Pharmacist
+                    </button>
+                  </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
+
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Email</label>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
             <input
               type="email"
               className="input-field"
-              placeholder="email@example.com"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
+
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Password</label>
+            <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Security Password</label>
             <input
               type="password"
               className="input-field"
@@ -165,21 +192,28 @@ export default function Home() {
               required
             />
           </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-primary mt-4 flex items-center justify-center gap-2"
+            className="w-full btn-primary h-14 mt-6 flex items-center justify-center gap-3 shadow-lg shadow-indigo-100"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isLogin ? <><LogIn className="w-4 h-4" /> Sign In</> : <><UserPlus className="w-4 h-4" /> Create Account</>}
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isLogin ? (
+              <><LogIn className="w-5 h-5" /> <span className="text-base uppercase tracking-widest font-black">Sign In</span></>
+            ) : (
+              <><UserPlus className="w-5 h-5" /> <span className="text-base uppercase tracking-widest font-black">Register</span></>
+            )}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center relative z-10 border-t pt-6">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-[var(--primary)] font-semibold hover:underline"
+            className="text-sm text-[var(--primary)] font-black uppercase tracking-wider hover:opacity-80 transition-opacity"
           >
-            {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
+            {isLogin ? "Create a new account" : "Back to sign in"}
           </button>
         </div>
       </div>
