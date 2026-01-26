@@ -32,16 +32,14 @@ export default function Home() {
           .eq("id", session.user.id)
           .single();
 
-        if (profileError) {
-          console.error("Profile fetch error:", profileError);
-          setInitialLoading(false);
-          return;
-        }
-
         if (profile) {
           router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-          // Note: Keep initialLoading true during push to avoid flicker
           return;
+        } else if (profileError) {
+          console.error("Profile check failed:", profileError);
+          if (profileError.code === "PGRST116") {
+            alert("Session found but your profile is incomplete. Please try signing out and registering again.");
+          }
         }
       }
     } catch (err) {
@@ -69,9 +67,9 @@ export default function Home() {
 
           if (profile) {
             router.push(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-            return; // Stay loading until redirected
+            return;
           } else {
-            alert("Profile not found. Please contact support.");
+            alert("Profile not found. If you just signed up, wait a moment.");
           }
         }
       } else {
@@ -86,11 +84,17 @@ export default function Home() {
         if (error) {
           alert(error.message);
         } else if (data.user) {
-          await supabase.from("profiles").insert([{
+          const { error: insertError } = await supabase.from("profiles").insert([{
             id: data.user.id,
             role: role,
             full_name: fullName
           }]);
+
+          if (insertError) {
+            console.error("Profile creation error:", insertError);
+            alert("Critical Error: Profile could not be created. Please try again or contact support.");
+            return;
+          }
 
           if (data.session) {
             router.push(role === "pharmacist" ? "/pharmacy" : "/patient");
@@ -120,7 +124,6 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[var(--app-bg)] text-[var(--text-main)]">
       <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-[var(--border)] relative overflow-hidden">
-        {/* Abstract Background Element */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-50"></div>
 
         <div className="text-center mb-8 relative z-10">
