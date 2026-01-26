@@ -1,10 +1,20 @@
 "use client";
 
 import { ReactNode } from "react";
-import { ArrowLeft, User, Search, ShoppingCart, Settings, Store, MessageCircle } from "lucide-react";
+import { ArrowLeft, User, Search, ShoppingCart, Store, MessageCircle, LogOut } from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function PatientLayout({ children }: { children: ReactNode }) {
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        // Use window.location.replace to clear any session state and redirect to login
+        window.location.replace("/");
+    };
+
     return (
         <div className="bg-[var(--app-bg)] min-h-screen">
             <header className="app-header">
@@ -22,7 +32,7 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <Link href="/patient" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Medication Search">
                         <Search className="w-5 h-5" />
                     </Link>
@@ -35,6 +45,13 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
                     <Link href="/patient/orders" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="My Orders">
                         <ShoppingCart className="w-5 h-5" />
                     </Link>
+                    <button
+                        onClick={handleSignOut}
+                        className="p-2 hover:bg-red-500/20 rounded-full transition-colors text-white/80 hover:text-white"
+                        title="Sign Out"
+                    >
+                        <LogOut className="w-5 h-5" />
+                    </button>
                 </div>
             </header>
 
