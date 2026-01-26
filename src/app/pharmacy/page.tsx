@@ -37,15 +37,26 @@ export default function PharmacyOrdersPage() {
     }
 
     async function fetchInventory() {
-        const { data } = await supabase.from("inventory").select("*").order("name");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+            .from("inventory")
+            .select("*")
+            .eq("pharmacy_id", user.id)
+            .order("name");
         setOfflineItems(data || []);
     }
 
     async function fetchOrders() {
         setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const { data, error } = await supabase
             .from("orders")
             .select("*")
+            .eq("pharmacy_id", user.id)
             .order("created_at", { ascending: false });
 
         if (error) console.error("Error fetching orders:", error);

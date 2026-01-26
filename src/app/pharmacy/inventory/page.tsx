@@ -23,9 +23,13 @@ export default function InventoryPage() {
     }, []);
 
     async function fetchInventory() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const { data, error } = await supabase
             .from("inventory")
             .select("*")
+            .eq("pharmacy_id", user.id)
             .order("name");
 
         if (error) console.error("Error fetching inventory:", error);
