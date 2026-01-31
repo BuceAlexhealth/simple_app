@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X } from "lucide-react";
+import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X, Loader } from "lucide-react";
 import Link from "next/link";
 
 interface OrderItem {
@@ -108,7 +108,7 @@ export default function PatientOrdersPage() {
     const toggleOrderExpansion = (orderId: string) => {
         const newExpandedId = expandedOrderId === orderId ? null : orderId;
         setExpandedOrderId(newExpandedId);
-        
+
         // Update URL hash without page reload
         if (newExpandedId) {
             window.history.pushState(null, '', `#order-${newExpandedId}`);
@@ -139,10 +139,10 @@ export default function PatientOrdersPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="section-header">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Purchase History</h2>
-                    <p className="text-sm text-slate-500">Track and manage your medical orders.</p>
+                    <h2 className="section-title">Purchase History</h2>
+                    <p className="section-subtitle">Track and manage your medical orders.</p>
                 </div>
                 <Link href="/patient" className="btn-primary flex items-center gap-2 py-2 px-4 text-xs">
                     <ShoppingBag className="w-4 h-4" /> New Order
@@ -150,14 +150,16 @@ export default function PatientOrdersPage() {
             </div>
 
             {loading ? (
-                <div className="text-center py-20 text-slate-400 font-medium animate-pulse">Retrieving your secure data...</div>
+                <div className="loading-container">
+                    <Loader className="loading-spinner" />
+                </div>
             ) : (
                 <div className="space-y-4">
                     {orders.map((order) => {
                         const status = getStatusInfo(order.status);
                         const isExpanded = expandedOrderId === order.id;
                         const items = orderItems[order.id] || [];
-                        
+
                         return (
                             <div key={order.id} id={`order-${order.id}`} className={`app-card border-none bg-white p-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}>
                                 <div className="p-6">
@@ -191,7 +193,7 @@ export default function PatientOrdersPage() {
                                         <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
                                             <div className="flex items-center justify-between mb-3">
                                                 <h4 className="font-bold text-slate-800 text-sm">Order Details</h4>
-                                                <button 
+                                                <button
                                                     onClick={() => toggleOrderExpansion(order.id)}
                                                     className="text-blue-600 hover:text-blue-700 p-1"
                                                 >
@@ -225,14 +227,14 @@ export default function PatientOrdersPage() {
                                     <div className="mt-4 flex items-center justify-between pt-4 border-t border-slate-50">
                                         <div>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Total</p>
-                                            <p className="font-black text-slate-800 text-xl">₹${order.total_price}</p>
+                                            <p className="font-black text-slate-800 text-xl">₹{order.total_price}</p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <button 
+                                            <button
                                                 onClick={() => toggleOrderExpansion(order.id)}
                                                 className="text-blue-600 font-bold text-xs hover:underline flex items-center gap-1"
                                             >
-                                                {isExpanded ? 'Hide' : 'View'} Details 
+                                                {isExpanded ? 'Hide' : 'View'} Details
                                                 {isExpanded ? <X className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
                                             </button>
                                             <Link href="/patient/chats" className="flex items-center gap-2 text-[var(--primary)] font-bold text-xs hover:underline">
@@ -242,7 +244,7 @@ export default function PatientOrdersPage() {
                                     </div>
                                 </div>
                                 <div className="bg-slate-50 p-3 flex justify-center text-[var(--primary)]">
-                                    <button 
+                                    <button
                                         onClick={() => toggleOrderExpansion(order.id)}
                                         className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                                     >
@@ -254,12 +256,12 @@ export default function PatientOrdersPage() {
                     })}
 
                     {orders.length === 0 && (
-                        <div className="text-center py-24 bg-white rounded-3xl border border-slate-200">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <ShoppingBag className="w-10 h-10 text-slate-200" />
+                        <div className="empty-state">
+                            <div className="empty-state-icon">
+                                <ShoppingBag className="w-10 h-10 text-slate-300" />
                             </div>
-                            <h3 className="text-slate-500 font-black">Your order history is empty</h3>
-                            <p className="text-slate-400 mt-1 text-sm">Medications you order will appear here.</p>
+                            <h3 className="empty-state-title">Your order history is empty</h3>
+                            <p className="empty-state-text">Medications you order will appear here.</p>
                             <Link href="/patient" className="mt-6 inline-block btn-primary">
                                 Start Shopping
                             </Link>

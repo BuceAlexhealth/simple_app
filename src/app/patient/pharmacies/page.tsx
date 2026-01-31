@@ -56,9 +56,9 @@ export default function PharmaciesPage() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Connected Pharmacies</h2>
-                <p className="text-sm text-slate-500">Manage which pharmacies you can order from.</p>
+            <div className="section-header">
+                <h2 className="section-title">Connected Pharmacies</h2>
+                <p className="section-subtitle">Manage which pharmacies you can order from.</p>
             </div>
 
             <div className="relative">
@@ -73,7 +73,9 @@ export default function PharmaciesPage() {
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-20"><Loader className="w-8 h-8 animate-spin text-[var(--primary)]" /></div>
+                <div className="loading-container">
+                    <Loader className="loading-spinner" />
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredPharmacies.map((pharma) => {
@@ -92,8 +94,8 @@ export default function PharmaciesPage() {
                                 <button
                                     onClick={() => toggleConnect(pharma.id)}
                                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${isConnected
-                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                            : 'bg-indigo-50 text-[var(--primary)] border border-indigo-100 hover:bg-indigo-100'
+                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                        : 'bg-indigo-50 text-[var(--primary)] border border-indigo-100 hover:bg-indigo-100'
                                         }`}
                                 >
                                     {isConnected ? <><CheckCircle2 className="w-4 h-4" /> Connected</> : <><Plus className="w-4 h-4" /> Connect</>}

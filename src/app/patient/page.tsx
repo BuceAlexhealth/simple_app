@@ -186,8 +186,8 @@ export default function PatientSearchPage() {
     };
 
     if (loading) return (
-        <div className="flex h-screen items-center justify-center bg-slate-50">
-            <Loader className="h-8 w-8 animate-spin text-[var(--primary)]" />
+        <div className="loading-container">
+            <Loader className="loading-spinner" />
         </div>
     );
 
@@ -196,9 +196,9 @@ export default function PatientSearchPage() {
 
             {/* Header with Search and Cart */}
             <header className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-black tracking-tight text-slate-900">Patient Portal</h1>
-                    <p className="text-sm font-medium text-slate-500">Welcome back</p>
+                <div className="section-header">
+                    <h1 className="section-title">Patient Portal</h1>
+                    <p className="section-subtitle">Welcome back</p>
                 </div>
                 <div className="relative">
                     <Button variant="outline" size="icon" className="relative rounded-xl border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all">
