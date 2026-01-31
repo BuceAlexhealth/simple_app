@@ -2,30 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CheckCircle2, Clock, Truck, Package, AlertCircle, RefreshCw, Share2, Copy, Store } from "lucide-react";
+import { CheckCircle2, Clock, Package, AlertCircle, RefreshCw, Share2, Copy, Store, Loader, X, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Order, InventoryItem, OrderStatus } from "@/types";
 
-interface Order {
+interface OrderItem {
     id: string;
-    patient_id: string;
-    status: 'placed' | 'ready' | 'complete' | 'cancelled';
-    total_price: number;
-    created_at: string;
+    order_id: string;
+    inventory_id: string;
+    quantity: number;
+    price_at_time: number;
 }
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { toast } from "sonner";
 
 export default function PharmacyOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [offlineItems, setOfflineItems] = useState<any[]>([]);
+    const [offlineItems, setOfflineItems] = useState<InventoryItem[]>([]);
     const [adjustments, setAdjustments] = useState<Record<string, number>>({});
     const [isProcessingEOD, setIsProcessingEOD] = useState(false);
     const [inviteLink, setInviteLink] = useState("");
     const [copied, setCopied] = useState(false);
+    const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
 
     useEffect(() => {
         setupInviteLink();
         fetchOrders();
         fetchInventory();
+
+        // Check for hash navigation
+        const hash = window.location.hash;
+        if (hash.startsWith('#order-')) {
+            const orderId = hash.replace('#order-', '');
+            setExpandedOrderId(orderId);
+        }
     }, []);
 
     async function setupInviteLink() {
@@ -40,12 +55,18 @@ export default function PharmacyOrdersPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from("inventory")
             .select("*")
             .eq("pharmacy_id", user.id)
             .order("name");
-        setOfflineItems(data || []);
+
+        if (error) {
+            console.error("Error fetching inventory:", error);
+            toast.error("Failed to load inventory");
+        } else {
+            setOfflineItems((data as unknown as InventoryItem[]) || []);
+        }
     }
 
     async function fetchOrders() {
@@ -59,19 +80,93 @@ export default function PharmacyOrdersPage() {
             .eq("pharmacy_id", user.id)
             .order("created_at", { ascending: false });
 
-        if (error) console.error("Error fetching orders:", error);
-        else setOrders(data || []);
+        if (error) {
+            console.error("Error fetching orders:", error);
+            toast.error("Failed to fetch orders");
+        } else {
+            const orderData = (data as unknown as Order[]) || [];
+            setOrders(orderData);
+            // Fetch order items for all orders
+            if (orderData.length > 0) {
+                await fetchOrderItems(orderData);
+            }
+        }
         setLoading(false);
     }
 
-    async function updateStatus(orderId: string, newStatus: Order['status']) {
+    async function fetchOrderItems(orders: Order[]) {
+        const orderIds = orders.map(o => o.id);
+        const { data, error } = await supabase
+            .from("order_items")
+            .select("*")
+            .in("order_id", orderIds);
+
+        if (error) {
+            console.error("Error fetching order items:", error);
+        } else {
+            const itemsByOrder = (data || []).reduce((acc, item) => {
+                if (!acc[item.order_id]) acc[item.order_id] = [];
+                acc[item.order_id].push(item);
+                return acc;
+            }, {} as Record<string, OrderItem[]>);
+            setOrderItems(itemsByOrder);
+        }
+    }
+
+    async function updateStatus(orderId: string, newStatus: OrderStatus) {
         const { error } = await supabase
             .from("orders")
             .update({ status: newStatus })
             .eq("id", orderId);
 
-        if (error) alert("Error updating status: " + error.message);
-        else fetchOrders();
+        if (error) {
+            toast.error("Error updating status: " + error.message);
+        } else {
+            // Update related chat message for any status change
+            await updateOrderChatMessage(orderId, newStatus);
+            toast.success(`Order status updated to ${newStatus}`);
+            fetchOrders();
+        }
+    }
+
+    async function updateOrderChatMessage(orderId: string, status: string) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Find the order-related message and update its content with new status
+        const { data: order } = await supabase
+            .from("orders")
+            .select("patient_id")
+            .eq("id", orderId)
+            .single();
+
+        if (order?.patient_id) {
+            // Find the message containing this order ID
+            const { data: message } = await supabase
+                .from("messages")
+                .select("id, content")
+                .eq("sender_id", order.patient_id)
+                .eq("receiver_id", user.id)
+                .like("content", `%ORDER_ID:${orderId}%`)
+                .single();
+
+            if (message?.content) {
+                // Update the ORDER_STATUS line in the message content
+                const updatedContent = message.content.replace(
+                    /ORDER_STATUS:[^\n]+/,
+                    `ORDER_STATUS:${status}`
+                );
+
+                const { error: updateError } = await supabase
+                    .from("messages")
+                    .update({ content: updatedContent })
+                    .eq("id", message.id);
+
+                if (updateError) {
+                    console.error("Error updating chat message:", updateError);
+                }
+            }
+        }
     }
 
     async function recordOfflineSales() {
@@ -91,116 +186,199 @@ export default function PharmacyOrdersPage() {
         setAdjustments({});
         await fetchInventory();
         setIsProcessingEOD(false);
-        alert("EOD adjustments applied successfully!");
+        toast.success("EOD adjustments applied successfully!");
     }
 
-    const getStatusStyles = (status: Order['status']) => {
+    const getBadgeVariant = (status: OrderStatus) => {
         switch (status) {
-            case 'placed': return "badge-warning";
-            case 'ready': return "badge-primary";
-            case 'complete': return "badge-success";
-            default: return "bg-slate-200 text-slate-700";
+            case 'placed': return "warning";
+            case 'ready': return "default"; // blue/primary
+            case 'complete': return "success";
+            case 'cancelled': return "destructive";
+            default: return "secondary";
         }
     };
 
+    const toggleOrderExpansion = (orderId: string) => {
+        const newExpandedId = expandedOrderId === orderId ? null : orderId;
+        setExpandedOrderId(newExpandedId);
+
+        // Update URL hash without page reload
+        if (newExpandedId) {
+            window.history.pushState(null, '', `#order-${newExpandedId}`);
+        } else {
+            window.history.pushState(null, '', window.location.pathname);
+        }
+    };
+
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash;
+            if (hash.startsWith('#order-')) {
+                const orderId = hash.replace('#order-', '');
+                setExpandedOrderId(orderId);
+                // Scroll to the expanded order
+                setTimeout(() => {
+                    const element = document.getElementById(`order-${orderId}`);
+                    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            } else {
+                setExpandedOrderId(null);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 p-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Active Orders</h2>
-                    <p className="text-sm text-slate-500">Track and fulfill prescriptions from your patients.</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">Active Orders</h2>
+                    <p className="text-slate-500">Track and fulfill prescriptions from your patients.</p>
                 </div>
             </div>
 
             {/* Branded Share Card */}
-            <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+            <div className="bg-indigo-600 rounded-xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
                 <div className="relative z-10 w-full md:w-auto">
                     <h3 className="text-lg font-bold flex items-center gap-2">
                         <Share2 className="w-5 h-5" /> Share Your Store
                     </h3>
-                    <p className="text-indigo-100 text-xs mt-1">Invite patients to connect and browse your live inventory.</p>
+                    <p className="text-indigo-100 text-sm mt-1">Invite patients to connect and browse your live inventory.</p>
 
-                    <div className="mt-4 bg-white/10 backdrop-blur-md rounded-xl p-3 flex items-center justify-between gap-3 border border-white/20">
-                        <code className="text-[10px] font-mono opacity-90 truncate overflow-hidden">
+                    <div className="mt-4 bg-white/10 backdrop-blur-md rounded-lg p-2 flex items-center justify-between gap-3 border border-white/20">
+                        <code className="text-xs font-mono opacity-90 truncate overflow-hidden px-2">
                             {inviteLink || "Generating link..."}
                         </code>
-                        <button
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className={`h-8 w-8 text-white hover:bg-white/20 ${copied ? "text-green-300" : ""}`}
                             onClick={() => {
                                 navigator.clipboard.writeText(inviteLink);
                                 setCopied(true);
+                                toast.success("Link copied to clipboard");
                                 setTimeout(() => setCopied(false), 2000);
                             }}
-                            className={`p-2 rounded-lg transition-all flex-shrink-0 ${copied ? 'bg-emerald-500 text-white' : 'bg-white text-indigo-600 hover:bg-indigo-50'}`}
                         >
                             {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </button>
+                        </Button>
                     </div>
                 </div>
-
-                <div className="hidden md:block opacity-20 rotate-6 scale-125">
-                    <Store className="w-20 h-20" />
+                <div className="hidden md:block opacity-20 rotate-12 scale-125">
+                    <Store className="w-24 h-24" />
                 </div>
-
-                {/* Decorative background element */}
-                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
             </div>
 
             {loading ? (
-                <div className="text-center py-20 text-slate-400 font-medium">Fetching orders...</div>
+                <div className="flex items-center justify-center py-20">
+                    <Loader className="w-8 h-8 animate-spin text-slate-400" />
+                </div>
             ) : (
-                <div className="grid grid-cols-1 gap-4">
-                    {orders.map((order) => (
-                        <div key={order.id} className="app-card border-l-8 border-l-[var(--primary)]">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-xs font-black text-slate-400 uppercase tracking-tighter">
-                                            ref #{order.id.slice(0, 8)}
-                                        </span>
-                                        <span className={`badge ${getStatusStyles(order.status)}`}>
-                                            {order.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-2xl font-black text-slate-800 mt-2">${order.total_price}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Received</p>
-                                    <p className="text-sm font-bold text-slate-600">
-                                        {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                            </div>
+                <div className="grid grid-cols-1 gap-6">
+                    {orders.map((order) => {
+                        const isExpanded = expandedOrderId === order.id;
+                        const items = orderItems[order.id] || [];
 
-                            <div className="mt-6 flex gap-3 border-t pt-4">
-                                {order.status === 'placed' && (
-                                    <button
-                                        onClick={() => updateStatus(order.id, 'ready')}
-                                        className="btn-primary flex-1 flex items-center justify-center gap-2 text-xs"
-                                    >
-                                        <Package className="w-4 h-4" /> Ready for Pickup
-                                    </button>
-                                )}
-                                {order.status === 'ready' && (
-                                    <button
-                                        onClick={() => updateStatus(order.id, 'complete')}
-                                        className="btn-primary flex-1 flex items-center justify-center gap-2 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4" /> Finalize Delivery
-                                    </button>
-                                )}
-                                <Link
-                                    href="/pharmacy/chats"
-                                    className="px-4 py-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 text-xs font-bold transition-all flex items-center justify-center gap-2"
-                                >
-                                    Message Patient
-                                </Link>
-                            </div>
-                        </div>
-                    ))}
+                        return (
+                            <Card key={order.id} id={`order-${order.id}`} className={`border-l-4 border-l-blue-600 transition-all duration-300 ${isExpanded ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}>
+                                <CardContent className="p-6">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className="text-xs font-mono font-bold text-slate-400">
+                                                    #{order.id.slice(0, 8)}
+                                                </span>
+                                                <Badge variant={getBadgeVariant(order.status)}>
+                                                    {order.status}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-2xl font-bold text-slate-900">₹{order.total_price}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs font-medium text-slate-500 mb-1">Received</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded Order Details */}
+                                    {isExpanded && (
+                                        <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-bold text-slate-800 text-sm">Order Details</h4>
+                                                <button
+                                                    onClick={() => toggleOrderExpansion(order.id)}
+                                                    className="text-blue-600 hover:text-blue-700 p-1"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {items.map((item, index) => (
+                                                    <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded-lg">
+                                                        <span className="font-medium text-slate-700">
+                                                            Item {index + 1}
+                                                        </span>
+                                                        <div className="text-right">
+                                                            <span className="text-slate-600">Qty: {item.quantity}</span>
+                                                            <span className="ml-4 text-slate-800 font-medium">
+                                                                ₹{(item.price_at_time * item.quantity).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <div className="border-t border-blue-200 pt-2 mt-2">
+                                                    <div className="flex items-center justify-between font-bold text-slate-800">
+                                                        <span>Total</span>
+                                                        <span className="text-lg">₹{order.total_price.toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                        <button
+                                            onClick={() => toggleOrderExpansion(order.id)}
+                                            className="text-blue-600 font-bold text-xs hover:underline flex items-center gap-1"
+                                        >
+                                            {isExpanded ? 'Hide' : 'View'} Details
+                                            {isExpanded ? <X className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                                        </button>
+                                        {order.status === 'placed' && (
+                                            <Button
+                                                className="flex-1"
+                                                onClick={() => updateStatus(order.id, 'ready')}
+                                            >
+                                                <Package className="w-4 h-4 mr-2" /> Ready for Pickup
+                                            </Button>
+                                        )}
+                                        {order.status === 'ready' && (
+                                            <Button
+                                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                onClick={() => updateStatus(order.id, 'complete')}
+                                            >
+                                                <CheckCircle2 className="w-4 h-4 mr-2" /> Finalize Delivery
+                                            </Button>
+                                        )}
+                                        <Link href="/pharmacy/chats" className="flex-1">
+                                            <Button variant="outline" className="w-full">
+                                                Message Patient
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                     {orders.length === 0 && (
-                        <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                            <Clock className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                            <p className="text-slate-400 font-bold">No orders at the moment.</p>
+                        <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                            <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                            <p className="text-slate-500 font-medium">No orders at the moment.</p>
                         </div>
                     )}
                 </div>
@@ -208,55 +386,64 @@ export default function PharmacyOrdersPage() {
 
             {/* Offline Adjustment Section */}
             <div className="mt-12">
-                <div className="flex items-center gap-2 mb-4">
-                    <h3 className="text-xl font-black text-slate-800">EOD Inventory Check</h3>
+                <div className="flex items-center gap-2 mb-6">
+                    <h3 className="text-2xl font-bold text-slate-900">EOD Inventory Check</h3>
                     <AlertCircle className="w-5 h-5 text-amber-500" />
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <p className="text-sm text-slate-500 mb-6">Record offline physical sales to keep your online inventory synchronized.</p>
-
-                    <div className="space-y-3 mb-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Daily Reconciliation</CardTitle>
+                        <CardDescription>Record offline physical sales to keep your online inventory synchronized.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         {offlineItems.length > 0 ? (
-                            offlineItems.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
-                                    <div>
-                                        <p className="font-bold text-slate-800">{item.name}</p>
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-0.5">Current Stock: {item.stock}</p>
+                            <div className="space-y-3">
+                                {offlineItems.map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg group hover:bg-slate-100 transition-colors">
+                                        <div>
+                                            <p className="font-semibold text-slate-900">{item.name}</p>
+                                            <p className="text-xs text-slate-500 uppercase font-medium tracking-wide">Stock: {item.stock}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-medium text-slate-500">Sold Offline:</span>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max={item.stock}
+                                                placeholder="0"
+                                                className="w-24 h-9"
+                                                onChange={(e) => setAdjustments({ ...adjustments, [item.id]: parseInt(e.target.value) || 0 })}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[10px] font-bold text-slate-400">Sold Offline:</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={item.stock}
-                                            placeholder="0"
-                                            className="w-20 bg-white rounded-xl px-3 py-2 text-sm font-bold border border-slate-200 focus:ring-2 focus:ring-[var(--primary)] outline-none"
-                                            onChange={(e) => setAdjustments({ ...adjustments, [item.id]: parseInt(e.target.value) || 0 })}
-                                        />
-                                    </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         ) : (
                             <div className="text-center py-8">
-                                <RefreshCw className="w-8 h-8 text-slate-200 animate-spin mx-auto mb-2" />
-                                <p className="text-xs text-slate-400">Loading catalog...</p>
+                                <RefreshCw className="w-8 h-8 text-slate-300 animate-spin mx-auto mb-2" />
+                                <p className="text-sm text-slate-400">Loading catalog...</p>
                             </div>
                         )}
-                    </div>
 
-                    <button
-                        onClick={recordOfflineSales}
-                        disabled={isProcessingEOD || Object.values(adjustments).every(v => v === 0) || offlineItems.length === 0}
-                        className="w-full btn-primary h-14 bg-slate-800 hover:bg-black text-white rounded-2xl flex items-center justify-center gap-2"
-                    >
-                        {isProcessingEOD ? "Synchronizing..." : <><RefreshCw className="w-5 h-5" /> Confirm Sync & Close Day</>}
-                    </button>
-                    <p className="text-center text-[10px] text-slate-400 mt-4 uppercase font-black tracking-widest">
-                        Process is irreversible • updates inventory counts immediately
-                    </p>
-                </div>
+                        <div className="pt-4 border-t border-slate-100 mt-4">
+                            <Button
+                                className="w-full h-12 text-base"
+                                variant="default" // Using default (blue) or could use a custom dark variant if preferred
+                                onClick={recordOfflineSales}
+                                isLoading={isProcessingEOD}
+                                disabled={Object.values(adjustments).every(v => v === 0) || offlineItems.length === 0}
+                            >
+                                <RefreshCw className="w-4 h-4 mr-2" /> Confirm Sync & Close Day
+                            </Button>
+                            <p className="text-center text-xs text-slate-400 mt-3 font-medium uppercase tracking-wider">
+                                Updates inventory counts immediately
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
 }
+

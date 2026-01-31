@@ -37,7 +37,7 @@
   }
 
   .app-container {
-    @apply max-w-4xl mx-auto min-h-screen bg-[var(--app-bg)] pb-24;
+    @apply max-w-6xl mx-auto min-h-screen bg-[var(--app-bg)] pb-24;
   }
 
   .msg-bubble {

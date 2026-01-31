@@ -53,7 +53,7 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
                 </Link>
             </nav>
 
-            <main className="app-container p-6">
+            <main className="max-w-[1600px] mx-auto p-4 md:p-6 pb-24">
                 {children}
             </main>
         </div>

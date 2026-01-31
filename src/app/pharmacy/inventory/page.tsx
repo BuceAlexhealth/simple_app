@@ -94,7 +94,7 @@ export default function InventoryPage() {
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-bold uppercase text-slate-400 ml-1 mb-1 block">Price ($)</label>
+                            <label className="text-xs font-bold uppercase text-slate-400 ml-1 mb-1 block">Price (₹)</label>
                             <input
                                 type="number"
                                 placeholder="0.00"
@@ -141,7 +141,7 @@ export default function InventoryPage() {
                                 <div className="flex items-center justify-between mt-3">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Unit Price</span>
-                                        <span className="font-black text-[var(--primary)] text-xl">${item.price}</span>
+                                        <span className="font-black text-[var(--primary)] text-xl">₹{item.price}</span>
                                     </div>
                                     <div className="text-right flex flex-col items-end">
                                         <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Available</span>
