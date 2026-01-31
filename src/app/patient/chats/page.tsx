@@ -13,7 +13,8 @@ import {
     MoreVertical,
     Search,
     Check,
-    Store
+    Store,
+    Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -29,8 +30,10 @@ export default function PatientChatsPage() {
     const [newMessage, setNewMessage] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [isMobile, setIsMobile] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Initial Load
     useEffect(() => {
@@ -105,19 +108,50 @@ export default function PatientChatsPage() {
         return () => { supabase.removeChannel(channel); };
     }
 
-    async function sendMessage(e: React.FormEvent) {
-        e.preventDefault();
-        if (!newMessage.trim() || !selectedPharmacy) return;
+    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        if (!e.target.files || !e.target.files[0] || !selectedPharmacy) return;
 
-        const msgContent = newMessage;
-        setNewMessage("");
+        setIsUploading(true);
+        const file = e.target.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${currentUser.id}/${fileName}`;
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('chat-media')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('chat-media')
+                .getPublicUrl(filePath);
+
+            await sendMessage(null, publicUrl);
+        } catch (error: any) {
+            alert('Error uploading image: ' + error.message);
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    }
+
+    async function sendMessage(e: React.FormEvent | null, imageUrl?: string) {
+        if (e) e.preventDefault();
+
+        const content = newMessage.trim();
+        if ((!content && !imageUrl) || !selectedPharmacy) return;
+
+        if (!imageUrl) setNewMessage("");
 
         // Optimistic update
         const optimisticMsg = {
             id: Date.now(),
             sender_id: currentUser.id,
             receiver_id: selectedPharmacy.id,
-            content: msgContent,
+            content: content || (imageUrl ? "Sent an image" : ""),
+            image_url: imageUrl,
             created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, optimisticMsg]);
@@ -127,7 +161,8 @@ export default function PatientChatsPage() {
             .insert([{
                 sender_id: currentUser.id,
                 receiver_id: selectedPharmacy.id,
-                content: msgContent
+                content: content || (imageUrl ? "Sent an image" : ""),
+                image_url: imageUrl
             }]);
 
         if (error) {
@@ -191,13 +226,13 @@ export default function PatientChatsPage() {
                                             layoutId={`pharma-${pharmacy.id}`}
                                             onClick={() => setSelectedPharmacy(pharmacy)}
                                             className={`p-3 rounded-2xl cursor-pointer transition-all group flex items-center gap-3 ${selectedPharmacy?.id === pharmacy.id
-                                                    ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-100'
-                                                    : 'hover:bg-slate-50'
+                                                ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-100'
+                                                : 'hover:bg-slate-50'
                                                 }`}
                                         >
                                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-colors shrink-0 ${selectedPharmacy?.id === pharmacy.id
-                                                    ? 'bg-[var(--primary)] text-white'
-                                                    : 'bg-white border border-slate-100 text-slate-600 group-hover:border-indigo-200'
+                                                ? 'bg-[var(--primary)] text-white'
+                                                : 'bg-white border border-slate-100 text-slate-600 group-hover:border-indigo-200'
                                                 }`}>
                                                 {pharmacy.full_name?.[0]?.toUpperCase() || <Store className="w-5 h-5" />}
                                             </div>
@@ -274,12 +309,24 @@ export default function PatientChatsPage() {
                                                     <OrderNotification msg={msg} />
                                                 ) : (
                                                     <div className={`max-w-[85%] md:max-w-[70%]`}>
-                                                        <div className={`px-4 py-3 text-sm leading-relaxed shadow-sm  ${isMe
+                                                        {msg.image_url ? (
+                                                            <div className={`rounded-xl overflow-hidden mb-1 border ${isMe ? 'border-indigo-200' : 'border-slate-200'}`}>
+                                                                <img
+                                                                    src={msg.image_url}
+                                                                    alt="Attachment"
+                                                                    className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                                    onClick={() => window.open(msg.image_url, '_blank')}
+                                                                />
+                                                            </div>
+                                                        ) : null}
+                                                        {msg.content && msg.content !== "Sent an image" && (
+                                                            <div className={`px-4 py-3 text-sm leading-relaxed shadow-sm  ${isMe
                                                                 ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-sm'
                                                                 : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm'
-                                                            }`}>
-                                                            {msg.content}
-                                                        </div>
+                                                                }`}>
+                                                                {msg.content}
+                                                            </div>
+                                                        )}
                                                         <div className={`text-[10px] mt-1 opacity-60 flex gap-1 items-center ${isMe ? 'justify-end text-slate-400' : 'justify-start text-slate-400'
                                                             }`}>
                                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -294,7 +341,7 @@ export default function PatientChatsPage() {
                                 </div>
 
                                 <div className="p-4 bg-white border-t border-slate-100 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.02)] z-20">
-                                    <form onSubmit={sendMessage} className="flex items-end gap-2 max-w-4xl mx-auto">
+                                    <form onSubmit={(e) => sendMessage(e)} className="flex items-end gap-2 max-w-4xl mx-auto">
                                         <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all flex items-center px-4 py-3">
                                             <input
                                                 className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 max-h-20 resize-none"
@@ -302,9 +349,24 @@ export default function PatientChatsPage() {
                                                 value={newMessage}
                                                 onChange={e => setNewMessage(e.target.value)}
                                             />
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                ref={fileInputRef}
+                                                onChange={handleImageUpload}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className={`p-2 rounded-full hover:bg-slate-200 transition-colors ${isUploading ? 'animate-pulse text-indigo-500' : 'text-slate-400 hover:text-indigo-500'}`}
+                                                disabled={isUploading}
+                                            >
+                                                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                                            </button>
                                         </div>
                                         <button
-                                            disabled={!newMessage.trim()}
+                                            disabled={!newMessage.trim() && !isUploading}
                                             className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg hover:scale-105 active:scale-95"
                                         >
                                             <Send className="w-5 h-5" />

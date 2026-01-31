@@ -39,8 +39,9 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
                     <Link href="/patient/pharmacies" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="My Pharmacies">
                         <Store className="w-5 h-5" />
                     </Link>
-                    <Link href="/patient/chats" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Messages">
-                        <MessageCircle className="w-5 h-5" />
+                    <Link href="/patient/chats" className="relative p-2.5 bg-white/20 hover:bg-white/30 rounded-full transition-all shadow-lg ring-1 ring-white/20 group" title="Messages">
+                        <MessageCircle className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                        <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-indigo-900"></span>
                     </Link>
                     <Link href="/patient/orders" className="p-2 hover:bg-white/10 rounded-full transition-colors" title="My Orders">
                         <ShoppingCart className="w-5 h-5" />
