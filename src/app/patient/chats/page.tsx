@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import {
     Send,
@@ -39,34 +39,7 @@ export default function PatientChatsPage() {
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Initial Load
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        fetchConnections();
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Load Messages when pharmacy selected
-    useEffect(() => {
-        if (selectedPharmacy) {
-            fetchMessages(selectedPharmacy.id);
-            const unsubscribe = subscribeToMessages(selectedPharmacy.id);
-            return () => { unsubscribe(); };
-        }
-    }, [selectedPharmacy]);
-
-    // Scroll to bottom
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    async function fetchConnections() {
+    const fetchConnections = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setCurrentUser(user);
@@ -80,9 +53,10 @@ export default function PatientChatsPage() {
             setConnections(data.map((c: any) => c.profiles).filter(Boolean));
         }
         setLoading(false);
-    }
+    }, []);
 
-    async function fetchMessages(pharmacyId: string) {
+    const fetchMessages = useCallback(async (pharmacyId: string) => {
+        if (!currentUser) return;
         const { data } = await supabase
             .from("messages")
             .select("*")
@@ -90,9 +64,10 @@ export default function PatientChatsPage() {
             .order("created_at", { ascending: true });
 
         setMessages(data || []);
-    }
+    }, [currentUser]);
 
-    function subscribeToMessages(pharmacyId: string) {
+    const subscribeToMessages = useCallback((pharmacyId: string) => {
+        if (!currentUser) return () => { };
         const channel = supabase
             .channel(`chat:${pharmacyId}`)
             .on(
@@ -110,7 +85,34 @@ export default function PatientChatsPage() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }
+    }, [currentUser]);
+
+    // Initial Load
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        fetchConnections();
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [fetchConnections]);
+
+    // Load Messages when pharmacy selected
+    useEffect(() => {
+        if (selectedPharmacy) {
+            fetchMessages(selectedPharmacy.id);
+            const unsubscribe = subscribeToMessages(selectedPharmacy.id);
+            return () => { unsubscribe(); };
+        }
+    }, [selectedPharmacy, fetchMessages, subscribeToMessages]);
+
+    // Scroll to bottom
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || !e.target.files[0] || !selectedPharmacy) return;
@@ -395,7 +397,7 @@ export default function PatientChatsPage() {
 function OrderNotification({ msg, currentUser, selectedPharmacy }: { msg: any; currentUser: any; selectedPharmacy: any }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderStatus, setOrderStatus] = useState<string | null>(null);
-    
+
     const isPharmacyOrder = msg.content.includes("PHARMACY_ORDER_REQUEST");
     const isCancelled = msg.content.includes("ORDER_STATUS:cancelled");
     const orderId = msg.content.match(/ORDER_ID:([0-9a-f-]{36})/)?.[1];
@@ -420,7 +422,7 @@ function OrderNotification({ msg, currentUser, selectedPharmacy }: { msg: any; c
             .select("acceptance_status")
             .eq("id", orderId)
             .single();
-        
+
         if (data) {
             setOrderStatus(data.acceptance_status);
         }
@@ -428,14 +430,14 @@ function OrderNotification({ msg, currentUser, selectedPharmacy }: { msg: any; c
 
     async function handleOrderAction(action: 'accept' | 'reject') {
         if (!orderId) return;
-        
+
         setIsProcessing(true);
         try {
             if (action === 'accept') {
                 // Update order status
                 const { error: updateError } = await supabase
                     .from("orders")
-                    .update({ 
+                    .update({
                         acceptance_status: 'accepted',
                         status: 'placed'
                     })
@@ -476,7 +478,7 @@ function OrderNotification({ msg, currentUser, selectedPharmacy }: { msg: any; c
             }
 
             setOrderStatus(action === 'accept' ? 'accepted' : 'rejected');
-            
+
         } catch (error: any) {
             toast.error("Error: " + error.message);
         } finally {
@@ -493,41 +495,37 @@ function OrderNotification({ msg, currentUser, selectedPharmacy }: { msg: any; c
         return (
             <motion.div
                 whileHover={{ scale: 1.02 }}
-                className={`w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all ${
-                    isRejected ? 'bg-red-50 border-red-100' : 
-                    isAccepted ? 'bg-emerald-50 border-emerald-100' : 
-                    isExpired ? 'bg-amber-50 border-amber-100' :
-                    'bg-indigo-50 border-indigo-100'
-                }`}
+                className={`w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all ${isRejected ? 'bg-red-50 border-red-100' :
+                    isAccepted ? 'bg-emerald-50 border-emerald-100' :
+                        isExpired ? 'bg-amber-50 border-amber-100' :
+                            'bg-indigo-50 border-indigo-100'
+                    }`}
             >
-                <div className={`p-3 flex items-center justify-between ${
-                    isRejected ? 'bg-red-100/50' : 
-                    isAccepted ? 'bg-emerald-100/50' : 
-                    isExpired ? 'bg-amber-100/50' :
-                    'bg-indigo-100/50'
-                }`}>
+                <div className={`p-3 flex items-center justify-between ${isRejected ? 'bg-red-100/50' :
+                    isAccepted ? 'bg-emerald-100/50' :
+                        isExpired ? 'bg-amber-100/50' :
+                            'bg-indigo-100/50'
+                    }`}>
                     <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${
-                            isRejected ? 'bg-white text-red-500' : 
-                            isAccepted ? 'bg-white text-emerald-500' : 
-                            isExpired ? 'bg-white text-amber-500' :
-                            'bg-white text-indigo-500'
-                        }`}>
-                            {isRejected ? <AlertCircle className="w-4 h-4" /> : 
-                             isAccepted ? <Check className="w-4 h-4" /> : 
-                             isExpired ? <Clock className="w-4 h-4" /> :
-                             <ShoppingCart className="w-4 h-4" />}
+                        <div className={`p-1.5 rounded-lg ${isRejected ? 'bg-white text-red-500' :
+                            isAccepted ? 'bg-white text-emerald-500' :
+                                isExpired ? 'bg-white text-amber-500' :
+                                    'bg-white text-indigo-500'
+                            }`}>
+                            {isRejected ? <AlertCircle className="w-4 h-4" /> :
+                                isAccepted ? <Check className="w-4 h-4" /> :
+                                    isExpired ? <Clock className="w-4 h-4" /> :
+                                        <ShoppingCart className="w-4 h-4" />}
                         </div>
-                        <span className={`text-xs font-bold uppercase tracking-wider ${
-                            isRejected ? 'text-red-700' : 
-                            isAccepted ? 'text-emerald-700' : 
-                            isExpired ? 'text-amber-700' :
-                            'text-indigo-700'
-                        }`}>
-                            {isRejected ? 'Order Rejected' : 
-                             isAccepted ? 'Order Accepted' : 
-                             isExpired ? 'Order Expired' :
-                             'Order Request'}
+                        <span className={`text-xs font-bold uppercase tracking-wider ${isRejected ? 'text-red-700' :
+                            isAccepted ? 'text-emerald-700' :
+                                isExpired ? 'text-amber-700' :
+                                    'text-indigo-700'
+                            }`}>
+                            {isRejected ? 'Order Rejected' :
+                                isAccepted ? 'Order Accepted' :
+                                    isExpired ? 'Order Expired' :
+                                        'Order Request'}
                         </span>
                     </div>
                     {isPending && !isExpired && (

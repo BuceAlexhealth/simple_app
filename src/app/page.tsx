@@ -8,8 +8,7 @@ export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"patient" | "pharmacist">("patient");
-  const [showPharmacyWarning, setShowPharmacyWarning] = useState(false);
+  const [role] = useState<"patient" | "pharmacist">("patient");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -64,45 +63,40 @@ export default function Home() {
             alert("Profile not found. If you just signed up, please wait a moment.");
           }
         }
-        } else {
-          // Check if user is trying to register as pharmacy
-          if (role === "pharmacist") {
-            setShowPharmacyWarning(true);
-            setLoading(false);
+      } else {
+
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, role: role }
+          }
+        });
+
+        if (error) {
+          alert(error.message);
+        } else if (data.user) {
+          const { error: insertError } = await supabase.from("profiles").insert([{
+            id: data.user.id,
+            role: role,
+            full_name: fullName
+          }]);
+
+          if (insertError) {
+            console.error("Profile creation error:", insertError);
+            alert("Error creating profile. Please try again.");
             return;
           }
 
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { full_name: fullName, role: role }
-            }
-          });
-
-          if (error) {
-            alert(error.message);
-          } else if (data.user) {
-            const { error: insertError } = await supabase.from("profiles").insert([{
-              id: data.user.id,
-              role: role,
-              full_name: fullName
-            }]);
-
-            if (insertError) {
-              console.error("Profile creation error:", insertError);
-              alert("Error creating profile. Please try again.");
-              return;
-            }
-
-            if (data.session) {
-              window.location.replace("/patient");
-            } else {
-              alert("Account created! Please sign in.");
-              setIsLogin(true);
-            }
+          if (data.session) {
+            window.location.replace("/patient");
+          } else {
+            alert("Account created! Please sign in.");
+            setIsLogin(true);
           }
         }
+      }
     } catch (err: any) {
       alert("An unexpected error occurred: " + err.message);
     } finally {
@@ -130,13 +124,8 @@ export default function Home() {
           </div>
           <h1 className="text-2xl font-black tracking-tight">PharmaPlus</h1>
           <p className="text-[var(--text-muted)] text-sm font-medium mt-1">Find Medications • Chat with Pharmacists • Track Orders</p>
-          
-          {/* Patient Dominance Indicator */}
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
-              90% of users are patients
-            </div>
-          </div>
+
+
         </div>
 
         <form onSubmit={handleAuth} className="space-y-4 relative z-10">
@@ -145,40 +134,16 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
-                    <input
-                      type="text"
-                      className="input-field text-base sm:text-lg py-3"
-                      placeholder="Enter your name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
+                  <input
+                    type="text"
+                    className="input-field text-base sm:text-lg py-3"
+                    placeholder="Enter your name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Account Type</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRole("patient")}
-                      className={`flex-1 py-4 rounded-2xl text-sm font-bold border-2 transition-all ${role === "patient" ? "bg-blue-50 border-blue-500 text-blue-600" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-lg">💊</span>
-                        <span>Patient</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole("pharmacist")}
-                      className={`flex-1 py-2 rounded-2xl text-xs font-bold border-2 transition-all ${role === "pharmacist" ? "bg-indigo-50 border-[var(--primary)] text-[var(--primary)]" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-sm">🏥</span>
-                        <span>Pharmacy</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
+
               </div>
             </div>
           )}
@@ -231,44 +196,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Pharmacy Access Warning Modal */}
-        {showPharmacyWarning && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-800">Healthcare Provider Access</h3>
-                <button 
-                  onClick={() => setShowPharmacyWarning(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <p className="text-slate-600 mb-4">
-                Pharmacy access requires professional verification. You&apos;ll need to provide:
-              </p>
-              <ul className="text-sm text-slate-500 space-y-2 mb-4">
-                <li>• Professional license number</li>
-                <li>• Business registration details</li>
-                <li>• Verified healthcare credentials</li>
-              </ul>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowPharmacyWarning(false)}
-                  className="flex-1 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => setShowPharmacyWarning(false)}
-                  className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  I Understand - Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

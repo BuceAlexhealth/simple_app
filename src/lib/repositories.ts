@@ -16,7 +16,7 @@ export abstract class BaseRepository {
    */
   protected handleError(error: any, operation: string, context: Record<string, any> = {}): never {
     const errorMessage = error?.message || 'Unknown database error';
-    
+
     // Log structured error
     logStructuredError(error, {
       operation,
@@ -28,7 +28,7 @@ export abstract class BaseRepository {
     if (error?.code === 'PGRST116') {
       throw new ApiError('Resource not found', 404, 'NOT_FOUND', context);
     }
-    
+
     if (error?.code?.startsWith('235')) {
       throw new ApiError('Invalid data provided', 400, 'VALIDATION_ERROR', context);
     }
@@ -48,6 +48,23 @@ export abstract class BaseRepository {
    * Get the table name for this repository
    */
   protected abstract getTableName(): string;
+
+  /**
+   * Delete a record by ID
+   */
+  async delete(id: string) {
+    try {
+      const { error } = await this.supabase
+        .from(this.getTableName())
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      this.handleError(error, 'delete', { id });
+    }
+  }
 }
 
 /**
@@ -102,13 +119,15 @@ export class OrdersRepository extends BaseRepository {
   /**
    * Get orders for a specific user
    */
-  async getOrdersByUserId(userId: string, filters: {
+  async getOrdersByUserId(userId: string, userRole: 'patient' | 'pharmacist' | 'admin' = 'patient', filters: {
     initiatorType?: 'patient' | 'pharmacy';
     status?: string;
     limit?: number;
     offset?: number;
   } = {}) {
     try {
+      const idField = userRole === 'pharmacist' ? 'pharmacy_id' : 'patient_id';
+
       let query = this.supabase
         .from("orders")
         .select(`
@@ -120,7 +139,7 @@ export class OrdersRepository extends BaseRepository {
             )
           )
         `)
-        .eq("pharmacy_id", userId);
+        .eq(idField, userId);
 
       if (filters.initiatorType) {
         query = query.eq("initiator_type", filters.initiatorType);
@@ -144,7 +163,7 @@ export class OrdersRepository extends BaseRepository {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      this.handleError(error, 'getOrdersByUserId', { userId, filters });
+      this.handleError(error, 'getOrdersByUserId', { userId, userRole, filters });
     }
   }
 
@@ -238,11 +257,216 @@ export class MessagesRepository extends BaseRepository {
 }
 
 /**
+ * Inventory repository
+ */
+export class InventoryRepository extends BaseRepository {
+  protected getTableName(): string {
+    return 'inventory';
+  }
+
+  async getInventoryByPharmacyId(pharmacyId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("inventory")
+        .select("*")
+        .eq("pharmacy_id", pharmacyId)
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getInventoryByPharmacyId', { pharmacyId });
+    }
+  }
+
+  async updateStock(itemId: string, newStock: number) {
+    try {
+      const { data, error } = await this.supabase
+        .from("inventory")
+        .update({ stock: newStock })
+        .eq("id", itemId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'updateStock', { itemId, newStock });
+    }
+  }
+
+  async addItem(itemData: any) {
+    try {
+      const { data, error } = await this.supabase
+        .from("inventory")
+        .insert(itemData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'addItem', itemData);
+    }
+  }
+
+  async updateItem(itemId: string, itemData: any) {
+    try {
+      const { data, error } = await this.supabase
+        .from("inventory")
+        .update(itemData)
+        .eq("id", itemId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'updateItem', { itemId, itemData });
+    }
+  }
+
+  async deleteItem(itemId: string) {
+    return this.delete(itemId);
+  }
+}
+
+/**
+ * Connections repository
+ */
+export class ConnectionsRepository extends BaseRepository {
+  protected getTableName(): string {
+    return 'connections';
+  }
+
+  async getConnectedPatients(pharmacyId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("connections")
+        .select(`
+          patient_id,
+          profiles:patient_id (
+            id,
+            full_name
+          )
+        `)
+        .eq("pharmacy_id", pharmacyId);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getConnectedPatients', { pharmacyId });
+    }
+  }
+
+  async getConnectedPharmacies(patientId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("connections")
+        .select("pharmacy_id, profiles:pharmacy_id(id, full_name)")
+        .eq("patient_id", patientId);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getConnectedPharmacies', { patientId });
+    }
+  }
+
+  async createConnection(patientId: string, pharmacyId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("connections")
+        .insert([{ patient_id: patientId, pharmacy_id: pharmacyId }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'createConnection', { patientId, pharmacyId });
+    }
+  }
+
+  async deleteConnection(patientId: string, pharmacyId: string) {
+    try {
+      const { error } = await this.supabase
+        .from("connections")
+        .delete()
+        .eq("patient_id", patientId)
+        .eq("pharmacy_id", pharmacyId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      this.handleError(error, 'deleteConnection', { patientId, pharmacyId });
+    }
+  }
+}
+
+/**
+ * Profiles repository
+ */
+export class ProfilesRepository extends BaseRepository {
+  protected getTableName(): string {
+    return 'profiles';
+  }
+
+  async getProfile(userId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'getProfile', { userId });
+    }
+  }
+
+  async getProfilesByRole(roles: string[]) {
+    try {
+      const { data, error } = await this.supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .in("role", roles);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getProfilesByRole', { roles });
+    }
+  }
+
+  async updateProfile(userId: string, profileData: any) {
+    try {
+      const { data, error } = await this.supabase
+        .from("profiles")
+        .update(profileData)
+        .eq("id", userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'updateProfile', { userId, profileData });
+    }
+  }
+}
+
+/**
  * Repository factory
  */
 export function createRepositories(supabase: SupabaseClient) {
   return {
     orders: new OrdersRepository(supabase),
-    messages: new MessagesRepository(supabase)
+    messages: new MessagesRepository(supabase),
+    inventory: new InventoryRepository(supabase),
+    connections: new ConnectionsRepository(supabase),
+    profiles: new ProfilesRepository(supabase)
   };
 }

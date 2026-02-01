@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { toast } from "sonner";
+import { handleAsyncError } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -18,26 +20,26 @@ import dynamic from 'next/dynamic';
 
 // Dynamic imports for better code splitting
 const VirtualizedMedicationList = dynamic(
-  () => import("@/components/patient/VirtualizedMedicationList").then(mod => ({ default: mod.VirtualizedMedicationList })),
-  { 
-    loading: () => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SkeletonCard count={6} /></div>,
-    ssr: false 
-  }
+    () => import("@/components/patient/VirtualizedMedicationList").then(mod => ({ default: mod.VirtualizedMedicationList })),
+    {
+        loading: () => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SkeletonCard count={6} /></div>,
+        ssr: false
+    }
 );
 
 const OrderConfirmationModal = dynamic(
-  () => import("@/components/patient/OrderConfirmationModal").then(mod => ({ default: mod.OrderConfirmationModal })),
-  { 
-    loading: () => null,
-    ssr: false 
-  }
+    () => import("@/components/patient/OrderConfirmationModal").then(mod => ({ default: mod.OrderConfirmationModal })),
+    {
+        loading: () => null,
+        ssr: false
+    }
 );
 
 const MedicationCard = dynamic(
-  () => import("@/components/patient/MedicationCard").then(mod => ({ default: mod.MedicationCard })),
-  { 
-    ssr: false 
-  }
+    () => import("@/components/patient/MedicationCard").then(mod => ({ default: mod.MedicationCard })),
+    {
+        ssr: false
+    }
 );
 
 export default function PatientSearchPage() {
@@ -68,11 +70,7 @@ export default function PatientSearchPage() {
         debouncedSearchHandler(search);
     }, [search]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    async function fetchData() {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -80,41 +78,46 @@ export default function PatientSearchPage() {
             return;
         }
 
+        const { connections: connRepo } = createRepositories(supabase);
+
         // Fetch connections with profiles
-        const { data: connections } = await supabase
-            .from("connections")
-            .select("pharmacy_id, profiles:pharmacy_id(id, full_name)")
-            .eq("patient_id", user.id);
+        const connections = await handleAsyncError(
+            () => connRepo.getConnectedPharmacies(user.id),
+            "Failed to load connected pharmacies"
+        );
 
-        // Handle case where profiles might be returned as an array (Supabase default for some relations)
-        const pharmacies = connections?.map(c => {
-            const profile = c.profiles;
-            return Array.isArray(profile) ? profile[0] : profile;
-        }).filter(Boolean) || [];
+        if (connections) {
+            const pharmacies = connections.map((c: any) => {
+                const profile = c.profiles;
+                return Array.isArray(profile) ? profile[0] : profile;
+            }).filter(Boolean) || [];
 
-        setConnectedPharmacies(pharmacies);
+            setConnectedPharmacies(pharmacies);
 
-        const connectedIds = pharmacies.map((p: any) => p.id);
+            const connectedIds = pharmacies.map((p: any) => p.id);
 
-        if (connectedIds.length === 0) {
-            setItems([]);
-            setLoading(false);
-            return;
-        }
+            if (connectedIds.length > 0) {
+                const { data, error } = await supabase
+                    .from("inventory")
+                    .select("*, profiles:pharmacy_id(full_name)")
+                    .in("pharmacy_id", connectedIds)
+                    .order("name");
 
-        const { data, error } = await supabase
-            .from("inventory")
-            .select("*, profiles:pharmacy_id(full_name)")
-            .in("pharmacy_id", connectedIds)
-            .order("name");
-
-        if (!error) setItems(data as unknown as InventoryItem[] || []);
-        else {
-            console.error(error);
-            toast.error("Failed to load inventory");
+                if (!error) {
+                    setItems(data as unknown as InventoryItem[] || []);
+                } else {
+                    handleAsyncError(() => Promise.reject(error), "Failed to load inventory");
+                }
+            } else {
+                setItems([]);
+            }
         }
         setLoading(false);
-    }
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     // Memoized filtered items to prevent unnecessary re-renders
     const filteredItems = useMemo(() => {
@@ -163,28 +166,24 @@ export default function PatientSearchPage() {
     }, []);
 
     const sendOrderNotificationToPharmacy = async (order: any, patientId: string, pharmacyId: string) => {
-        try {
-            // Create order summary
-            const orderItems = cart.map(item => `${item.name} (x${item.quantity})`).join(", ");
-            const orderSummary = `New Order #${order.id.slice(0, 8)}: ${orderItems}\nTotal: ₹${order.total_price.toFixed(2)}`;
+        const { messages: messagesRepo } = createRepositories(supabase);
 
-            // Send message to pharmacy
-            const messageContent = orderSummary + `\n\nORDER_ID:${order.id}\nORDER_STATUS:${order.status}\nORDER_TOTAL:${order.total_price}`;
-            const { error: messageError } = await supabase
-                .from("messages")
-                .insert([{
-                    sender_id: patientId,
-                    receiver_id: pharmacyId,
-                    content: messageContent
-                }]);
+        // Create order summary
+        const orderItemsSummary = cart.map(item => `${item.name} (x${item.quantity})`).join(", ");
+        const orderSummary = `New Order #${order.id.slice(0, 8)}: ${orderItemsSummary}\nTotal: ₹${order.total_price.toFixed(2)}`;
 
-            if (messageError) {
-                console.error("Error sending order notification:", messageError);
-                toast.error("Order placed, but failed to notify pharmacy chat.");
-            }
-        } catch (error: unknown) {
-            console.error("Error in sendOrderNotificationToPharmacy:", error);
-        }
+        // Send message to pharmacy
+        const messageContent = orderSummary + `\n\nORDER_ID:${order.id}\nORDER_STATUS:${order.status}\nORDER_TOTAL:${order.total_price}`;
+
+        await handleAsyncError(
+            () => messagesRepo.sendMessage({
+                sender_id: patientId,
+                receiver_id: pharmacyId,
+                content: messageContent,
+                order_id: order.id
+            }),
+            "Order placed, but failed to notify pharmacy chat"
+        );
     };
 
     const placeOrder = async () => {
@@ -204,45 +203,40 @@ export default function PatientSearchPage() {
         const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const pharmacyId = cart[0].pharmacy_id;
 
-        const { data: order, error: orderError } = await supabase
-            .from("orders")
-            .insert({
+        const { orders: ordersRepo } = createRepositories(supabase);
+
+        const order = await handleAsyncError(
+            () => ordersRepo.createOrder({
                 patient_id: user.id,
                 pharmacy_id: pharmacyId,
                 total_price: total,
                 status: 'placed'
-            })
-            .select()
-            .single();
+            }),
+            "Failed to place order"
+        );
 
-        if (orderError) {
-            console.error("Order error:", orderError);
-            toast.error("Failed to place order: " + orderError.message);
-            setIsOrdering(false);
-            return;
-        }
+        if (order) {
+            const orderItemsInsert = cart.map(item => ({
+                order_id: order.id,
+                inventory_id: item.id,
+                quantity: item.quantity,
+                price_at_time: item.price
+            }));
 
-        const orderItems = cart.map(item => ({
-            order_id: order.id,
-            inventory_id: item.id,
-            quantity: item.quantity,
-            price_at_time: item.price
-        }));
+            const { error: itemsError } = await supabase
+                .from("order_items")
+                .insert(orderItemsInsert);
 
-        const { error: itemsError } = await supabase
-            .from("order_items")
-            .insert(orderItems);
+            if (itemsError) {
+                handleAsyncError(() => Promise.reject(itemsError), "Failed to save order items");
+            } else {
+                // Send order notification to pharmacy
+                await sendOrderNotificationToPharmacy(order, user.id, pharmacyId);
 
-        if (itemsError) {
-            console.error("Items error:", itemsError);
-            toast.error("Failed to save order items");
-        } else {
-            // Send order notification to pharmacy
-            await sendOrderNotificationToPharmacy(order, user.id, pharmacyId);
-
-            setCart([]);
-            toast.success("Order placed successfully!");
-            router.push("/patient/orders");
+                setCart([]);
+                toast.success("Order placed successfully!");
+                router.push("/patient/orders");
+            }
         }
         setIsOrdering(false);
         setShowOrderConfirmation(false);
@@ -253,7 +247,7 @@ export default function PatientSearchPage() {
     };
 
     // Memoized cart total to prevent unnecessary recalculations
-    const cartTotal = useMemo(() => 
+    const cartTotal = useMemo(() =>
         cart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2), [cart]
     );
 
@@ -276,7 +270,7 @@ export default function PatientSearchPage() {
                 <div className="relative mb-6">
                     <div className="h-12 w-full bg-slate-100 rounded-2xl animate-pulse"></div>
                 </div>
-                
+
                 {/* Skeleton Medication Cards */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <SkeletonCard count={6} />

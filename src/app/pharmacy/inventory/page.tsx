@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Package, Edit2, Trash2, X, Info, Check, Loader } from "lucide-react";
+import { Plus, Package, Edit2, Trash2, X, Info, Check, Loader, Search } from "lucide-react";
 import { toast } from "sonner";
+import { handleAsyncError } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
 
 interface InventoryItem {
     id: string;
@@ -19,30 +21,37 @@ export default function InventoryPage() {
     const [isAdding, setIsAdding] = useState(false);
     const [newItem, setNewItem] = useState({ name: "", price: "", stock: "" });
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+    const [search, setSearch] = useState("");
+
+    const fetchInventory = useCallback(async () => {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const { inventory } = createRepositories(supabase);
+        const data = await handleAsyncError(
+            () => inventory.getInventoryByPharmacyId(user.id),
+            "Failed to load inventory"
+        );
+
+        if (data) {
+            setItems(data || []);
+        }
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
         fetchInventory();
     }, [fetchInventory]);
 
-    async function fetchInventory() {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from("inventory")
-            .select("*")
-            .eq("pharmacy_id", user.id)
-            .order("name");
-
-        if (error) {
-            console.error("Error fetching inventory:", error);
-            toast.error("Failed to load inventory");
-        } else {
-            setItems(data || []);
-        }
-        setLoading(false);
-    }
+    const filteredItems = useMemo(() => {
+        return items.filter(item =>
+            item.name.toLowerCase().includes(search.toLowerCase())
+        );
+    }, [items, search]);
 
     async function handleAddItem() {
         if (!newItem.name || !newItem.price || !newItem.stock) {
@@ -53,18 +62,18 @@ export default function InventoryPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return toast.error("You must be logged in to add items");
 
-        const { error } = await supabase.from("inventory").insert([
-            {
+        const { inventory } = createRepositories(supabase);
+        const success = await handleAsyncError(
+            () => inventory.addItem({
                 pharmacy_id: user.id,
                 name: newItem.name,
                 price: parseFloat(newItem.price),
                 stock: parseInt(newItem.stock),
-            },
-        ]);
+            }),
+            "Error adding item"
+        );
 
-        if (error) {
-            toast.error("Error adding item: " + error.message);
-        } else {
+        if (success) {
             toast.success("Item added successfully");
             setNewItem({ name: "", price: "", stock: "" });
             setIsAdding(false);
@@ -75,18 +84,17 @@ export default function InventoryPage() {
     async function handleUpdateItem() {
         if (!editingItem) return;
 
-        const { error } = await supabase
-            .from("inventory")
-            .update({
+        const { inventory } = createRepositories(supabase);
+        const success = await handleAsyncError(
+            () => inventory.updateItem(editingItem.id, {
                 name: editingItem.name,
                 price: editingItem.price,
                 stock: editingItem.stock
-            })
-            .eq("id", editingItem.id);
+            }),
+            "Error updating item"
+        );
 
-        if (error) {
-            toast.error("Error updating item: " + error.message);
-        } else {
+        if (success) {
             toast.success("Item updated successfully");
             setEditingItem(null);
             fetchInventory();
@@ -96,14 +104,13 @@ export default function InventoryPage() {
     async function handleDeleteItem(id: string) {
         if (!confirm("Are you sure you want to delete this item?")) return;
 
-        const { error } = await supabase
-            .from("inventory")
-            .delete()
-            .eq("id", id);
+        const { inventory } = createRepositories(supabase);
+        const success = await handleAsyncError(
+            () => inventory.deleteItem(id),
+            "Error deleting item"
+        );
 
-        if (error) {
-            toast.error("Error deleting item: " + error.message);
-        } else {
+        if (success) {
             toast.success("Item deleted successfully");
             fetchInventory();
         }
@@ -171,13 +178,24 @@ export default function InventoryPage() {
                 </div>
             )}
 
+            <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[var(--primary)] transition-colors w-5 h-5" />
+                <input
+                    type="text"
+                    placeholder="Search medicines in your inventory..."
+                    className="input-field pl-12 h-14 bg-white border-2 border-slate-100 hover:border-slate-200 transition-all focus:border-[var(--primary)] text-lg"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </div>
+
             {loading ? (
                 <div className="loading-container">
                     <Loader className="loading-spinner" />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {items.map((item) => (
+                    {filteredItems.map((item) => (
                         <div key={item.id} className={`card-style ${editingItem?.id === item.id ? 'ring-2 ring-[var(--primary)]' : ''}`}>
                             {editingItem?.id === item.id ? (
                                 <div className="space-y-4">
@@ -264,7 +282,19 @@ export default function InventoryPage() {
                             )}
                         </div>
                     ))}
-                    {items.length === 0 && !isAdding && (
+                    {filteredItems.length === 0 && !loading && (
+                        <div className="md:col-span-2 empty-state bg-white">
+                            <div className="empty-state-icon">
+                                <Search className="w-10 h-10 text-slate-200" />
+                            </div>
+                            <h3 className="empty-state-title">No matching medicines found</h3>
+                            <p className="empty-state-text">Try adjusting your search term or check for typos.</p>
+                            {search && (
+                                <button onClick={() => setSearch("")} className="mt-6 btn-secondary">Clear Search</button>
+                            )}
+                        </div>
+                    )}
+                    {items.length === 0 && !isAdding && !loading && (
                         <div className="md:col-span-2 empty-state">
                             <div className="empty-state-icon">
                                 <Info className="w-10 h-10 text-slate-200" />

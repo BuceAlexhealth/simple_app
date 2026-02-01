@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/error-handling";
+import { getErrorMessage, handleAsyncError } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
 
 interface ConnectedPatient {
     id: string;
@@ -28,61 +29,50 @@ export default function CreateOrderPage() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        fetchInventory();
-        fetchConnectedPatients();
-    }, []);
-
-    async function fetchInventory() {
+    const fetchInventory = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data, error } = await supabase
-            .from("inventory")
-            .select("*")
-            .eq("pharmacy_id", user.id)
-            .order("name");
+        const { inventory } = createRepositories(supabase);
+        const data = await handleAsyncError(
+            () => inventory.getInventoryByPharmacyId(user.id),
+            "Failed to load inventory"
+        );
 
-        if (error) {
-            console.error("Error fetching inventory:", error);
-            toast.error("Failed to load inventory");
-        } else {
+        if (data) {
             setInventory((data as InventoryItem[]) || []);
         }
         setLoading(false);
-    }
+    }, []);
 
-    async function fetchConnectedPatients() {
+    const fetchConnectedPatients = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data, error } = await supabase
-            .from("connections")
-            .select(`
-                patient_id,
-                profiles:patient_id (
-                    id,
-                    full_name
-                )
-            `)
-            .eq("pharmacy_id", user.id);
+        const { connections } = createRepositories(supabase);
+        const data = await handleAsyncError(
+            () => connections.getConnectedPatients(user.id),
+            "Failed to load connected patients"
+        );
 
-        if (error) {
-            console.error("Error fetching patients:", error.message || error);
-            toast.error("Failed to load connected patients: " + (error.message || "Unknown error"));
-        } else {
+        if (data) {
             const connectedPatients = (data || []).map(conn => {
                 const profile = Array.isArray(conn.profiles) ? conn.profiles[0] : conn.profiles;
                 return {
                     id: profile?.id,
                     full_name: profile?.full_name
                 };
-            }).filter(p => p.id); // Filter out any invalid entries
+            }).filter(p => p.id);
             setPatients(connectedPatients);
         }
-    }
+    }, []);
 
-    const filteredInventory = useMemo(() => 
+    useEffect(() => {
+        fetchInventory();
+        fetchConnectedPatients();
+    }, [fetchInventory, fetchConnectedPatients]);
+
+    const filteredInventory = useMemo(() =>
         inventory.filter(item =>
             item.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
             item.stock > 0
@@ -132,26 +122,26 @@ export default function CreateOrderPage() {
         }
 
         try {
+            const { orders, messages } = createRepositories(supabase);
+
             // Create the order
-            const { data: order, error: orderError } = await supabase
-                .from("orders")
-                .insert({
-                    patient_id: selectedPatient.id,
-                    pharmacy_id: user.id,
-                    total_price: calculateTotal(),
-                    status: 'placed',
-                    initiator_type: 'pharmacy',
-                    acceptance_status: 'pending',
-                    acceptance_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
-                    pharmacy_notes: pharmacyNotes || null
-                })
-                .select()
-                .single();
+            const orderData = {
+                patient_id: selectedPatient.id,
+                pharmacy_id: user.id,
+                total_price: calculateTotal(),
+                status: 'placed',
+                initiator_type: 'pharmacy',
+                acceptance_status: 'pending',
+                acceptance_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                pharmacy_notes: pharmacyNotes || null
+            };
 
-            if (orderError) throw orderError;
+            const order = await orders.createOrder(orderData);
 
-            // Create order items
-            const orderItems = cart.map(item => ({
+            if (!order) throw new Error("Failed to create order");
+
+            // Create order items (direct insert for now as it's a bulk operation)
+            const itemsToInsert = cart.map(item => ({
                 order_id: order.id,
                 inventory_id: item.id,
                 quantity: 1,
@@ -160,22 +150,19 @@ export default function CreateOrderPage() {
 
             const { error: itemsError } = await supabase
                 .from("order_items")
-                .insert(orderItems);
+                .insert(itemsToInsert);
 
             if (itemsError) throw itemsError;
 
             // Send chat message to patient
             const orderMessage = `PHARMACY_ORDER_REQUEST\nORDER_ID:${order.id}\nPATIENT:${selectedPatient.full_name}\nTOTAL:₹${calculateTotal().toFixed(2)}\nITEMS:${cart.map(item => item.name).join(', ')}\nNOTES:${pharmacyNotes || 'None'}\nSTATUS:Pending Acceptance\nDEADLINE:${new Date(order.acceptance_deadline).toLocaleString()}`;
 
-            const { error: messageError } = await supabase
-                .from("messages")
-                .insert({
-                    sender_id: user.id,
-                    receiver_id: selectedPatient.id,
-                    content: orderMessage
-                });
-
-            if (messageError) throw messageError;
+            await messages.sendMessage({
+                sender_id: user.id,
+                receiver_id: selectedPatient.id,
+                content: orderMessage,
+                order_id: order.id
+            });
 
             toast.success("Order sent to patient for acceptance");
             router.push("/pharmacy");
@@ -227,8 +214,8 @@ export default function CreateOrderPage() {
                                     key={patient.id}
                                     onClick={() => setSelectedPatient(patient)}
                                     className={`p-4 rounded-lg border-2 text-left transition-all ${selectedPatient?.id === patient.id
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-slate-200 hover:border-slate-300'
                                         }`}
                                 >
                                     <div className="font-semibold text-slate-900">{patient.full_name}</div>

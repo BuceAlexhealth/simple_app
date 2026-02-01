@@ -51,9 +51,9 @@ export async function authenticateApi(request: NextRequest): Promise<ApiAuthResu
     // Extract token from Authorization header
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return { 
-        user: null, 
-        error: { message: "Missing or invalid authorization header", status: 401 } 
+      return {
+        user: null,
+        error: { message: "Missing or invalid authorization header", status: 401 }
       };
     }
 
@@ -64,9 +64,9 @@ export async function authenticateApi(request: NextRequest): Promise<ApiAuthResu
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      return { 
-        user: null, 
-        error: { message: "Invalid or expired token", status: 401 } 
+      return {
+        user: null,
+        error: { message: "Invalid or expired token", status: 401 }
       };
     }
 
@@ -87,9 +87,9 @@ export async function authenticateApi(request: NextRequest): Promise<ApiAuthResu
 
   } catch (error) {
     console.error("Authentication error:", error);
-    return { 
-      user: null, 
-      error: { message: "Authentication failed", status: 500 } 
+    return {
+      user: null,
+      error: { message: "Authentication failed", status: 500 }
     };
   }
 }
@@ -99,18 +99,64 @@ export async function authenticateApi(request: NextRequest): Promise<ApiAuthResu
  */
 export function authorizeRole(user: AuthenticatedUser, requiredRoles: string | string[]): boolean {
   if (!user.role) return false;
-  
+
   const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
   return roles.includes(user.role);
+}
+
+/**
+ * Basic CSRF protection by checking Origin/Referer
+ */
+export function validateCsrf(request: NextRequest): boolean {
+  // In development, we might skip this or be more permissive
+  if (process.env.NODE_ENV === 'development') return true;
+
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const host = request.headers.get("host");
+
+  // Basic check: origin must match host if present
+  if (origin && host && !origin.includes(host)) {
+    return false;
+  }
+
+  // If no origin, check referer
+  if (!origin && referer && host && !referer.includes(host)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Log API request for monitoring
+ */
+export function logApiRequest(request: NextRequest, user?: AuthenticatedUser) {
+  const timestamp = new Date().toISOString();
+  const method = request.method;
+  const url = request.nextUrl.pathname;
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+
+  console.log(`[${timestamp}] ${method} ${url} - IP: ${ip} - User: ${user?.id || 'anonymous'}`);
 }
 
 /**
  * Comprehensive auth middleware for API routes
  */
 export async function requireAuth(
-  request: NextRequest, 
-  requiredRoles?: string | string[]
+  request: NextRequest,
+  requiredRoles?: string | string[],
+  options: { checkCsrf?: boolean; logRequest?: boolean } = { checkCsrf: true, logRequest: true }
 ): Promise<{ user: AuthenticatedUser } | never> {
+  // 1. CSRF Validation
+  if (options.checkCsrf && !validateCsrf(request)) {
+    throw new Error(JSON.stringify({
+      error: "CSRF validation failed",
+      status: 403
+    }));
+  }
+
+  // 2. Authentication
   const authResult = await authenticateApi(request);
 
   if (authResult.error) {
@@ -120,11 +166,17 @@ export async function requireAuth(
     }));
   }
 
+  // 3. Authorization
   if (requiredRoles && !authorizeRole(authResult.user!, requiredRoles)) {
     throw new Error(JSON.stringify({
       error: "Insufficient permissions",
       status: 403
     }));
+  }
+
+  // 4. Logging
+  if (options.logRequest) {
+    logApiRequest(request, authResult.user!);
   }
 
   return { user: authResult.user! };

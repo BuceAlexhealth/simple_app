@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Order, OrderStatus, InitiatorType, AcceptanceStatus } from "@/types";
+import { Order, OrderStatus } from "@/types";
 import { handleAsyncError, safeToast } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
 
 interface OrderItem {
   id: string;
@@ -27,69 +28,54 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
-    
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Use a single query with proper joins to avoid N+1 problem
-    const { data, error } = await supabase
-      .from("orders")
-      .select(`
-        *,
-        order_items (
-          *,
-          inventory:inventory_id (
-            name
-          )
-        )
-      `)
-      .eq("pharmacy_id", user.id)
-      .order("created_at", { ascending: false });
+    const { orders: ordersRepo } = createRepositories(supabase);
 
-    if (error) {
-      console.error("Failed to fetch orders:", error);
-      safeToast.error("Failed to fetch orders");
-      setLoading(false);
-      return;
+    const data = await handleAsyncError(
+      () => ordersRepo.getOrdersByUserId(user.id, 'pharmacist'),
+      "Failed to fetch orders"
+    );
+
+    if (data) {
+      const orderData = data as any[];
+      setOrders(orderData);
+
+      // Extract order items from the nested query result
+      const itemsByOrder = orderData.reduce((acc, order) => {
+        if (order.order_items && order.order_items.length > 0) {
+          acc[order.id] = order.order_items;
+        }
+        return acc;
+      }, {} as Record<string, OrderItem[]>);
+      setOrderItems(itemsByOrder);
     }
 
-    const orderData = data as any[];
-    setOrders(orderData);
-    
-    // Extract order items from the nested query result
-    const itemsByOrder = orderData.reduce((acc, order) => {
-      if (order.order_items && order.order_items.length > 0) {
-        acc[order.id] = order.order_items;
-      }
-      return acc;
-    }, {} as Record<string, OrderItem[]>);
-    setOrderItems(itemsByOrder);
-    
     setLoading(false);
-  }, [options.filter]);
-
-
+  }, []);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
+    const { orders: ordersRepo } = createRepositories(supabase);
 
-    if (error) {
-      console.error(`Failed to update order status to ${newStatus}:`, error);
-      safeToast.error(`Failed to update order status: ${error.message}`);
-      return;
+    const success = await handleAsyncError(
+      () => ordersRepo.updateOrderStatus(orderId, newStatus),
+      `Failed to update order status to ${newStatus}`
+    );
+
+    if (success) {
+      await updateOrderChatMessage(orderId, newStatus);
+      safeToast.success(`Order status updated to ${newStatus}`);
+      await fetchOrders();
     }
-
-    await updateOrderChatMessage(orderId, newStatus);
-    safeToast.success(`Order status updated to ${newStatus}`);
-    await fetchOrders();
   };
 
   const updateOrderChatMessage = async (orderId: string, status: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    const { messages: messagesRepo } = createRepositories(supabase);
 
     // Find the order-related message and update its content with new status
     const { data: order } = await supabase
@@ -115,14 +101,10 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
           `ORDER_STATUS:${status}`
         );
 
-        const { error: updateError } = await supabase
-          .from("messages")
-          .update({ content: updatedContent })
-          .eq("id", message.id);
-
-        if (updateError) {
-          console.error("Failed to update chat message:", updateError);
-        }
+        await handleAsyncError(
+          () => messagesRepo.updateMessage(message.id, updatedContent),
+          "Failed to update chat message"
+        );
       }
     }
   };

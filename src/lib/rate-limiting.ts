@@ -79,10 +79,10 @@ function getRateLimitIdentifier(request: NextRequest): string {
 
   // Fall back to IP address
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded ? forwarded.split(",")[0].trim() : 
-             request.headers.get("x-real-ip") || 
-             "unknown";
-  
+  const ip = forwarded ? forwarded.split(",")[0].trim() :
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
   return `ip:${hashString(ip)}`;
 }
 
@@ -106,28 +106,31 @@ export async function applyRateLimit(
   request: NextRequest,
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
+  // If rate limiting is disabled in environment, skip
+  if (process.env.RATE_LIMIT_ENABLED === 'false') {
+    return null;
+  }
+
   const rateLimiter = createRateLimiter(config);
   const result = await rateLimiter(request);
 
-  // Set rate limit headers
-  const headers = new Headers();
-  headers.set("X-RateLimit-Limit", result.limit.toString());
-  headers.set("X-RateLimit-Remaining", result.remaining.toString());
-  headers.set("X-RateLimit-Reset", new Date(result.resetTime).toISOString());
-
   if (!result.success) {
+    const headers = new Headers();
+    headers.set("X-RateLimit-Limit", result.limit.toString());
+    headers.set("X-RateLimit-Remaining", result.remaining.toString());
+    headers.set("X-RateLimit-Reset", new Date(result.resetTime).toISOString());
+
     return NextResponse.json(
-      { 
-        error: "Rate limit exceeded",
+      {
+        error: "Too many requests. Please try again later.",
         retryAfter: Math.ceil((result.resetTime - Date.now()) / 1000)
       },
-      { 
+      {
         status: 429,
         headers
       }
     );
   }
 
-  // Return headers to be added to successful response
-  return new NextResponse(null, { headers });
+  return null;
 }

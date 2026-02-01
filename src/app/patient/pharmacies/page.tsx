@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Search, Plus, UserPlus, CheckCircle2, Store, ArrowRight, Loader } from "lucide-react";
+import { handleAsyncError } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
+import { toast } from "sonner";
 
 export default function PharmaciesPage() {
     const [pharmacies, setPharmacies] = useState<any[]>([]);
@@ -10,43 +13,66 @@ export default function PharmaciesPage() {
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
 
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { profiles: profRepo, connections: connRepo } = createRepositories(supabase);
+
+        // Fetch all pharmacists/pharmacies
+        const pharmaData = await handleAsyncError(
+            () => profRepo.getProfilesByRole(["pharmacist", "pharmacy"]),
+            "Failed to load pharmacies"
+        );
+
+        if (pharmaData) {
+            setPharmacies(pharmaData || []);
+        }
+
+        if (user) {
+            const connData = await handleAsyncError(
+                () => connRepo.getConnectedPharmacies(user.id),
+                "Failed to load connections"
+            );
+
+            if (connData) {
+                setConnections(connData.map((c: any) => c.pharmacy_id));
+            }
+        }
+        setLoading(false);
+    }, []);
+
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
-    async function fetchData() {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Fetch all pharmacists/pharmacies
-        const { data: pharmaData } = await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("role", ["pharmacist", "pharmacy"]);
-
-        setPharmacies(pharmaData || []);
-
-        if (user) {
-            const { data: connData } = await supabase
-                .from("connections")
-                .select("pharmacy_id")
-                .eq("patient_id", user.id);
-
-            setConnections(connData?.map(c => c.pharmacy_id) || []);
-        }
-        setLoading(false);
-    }
-
     async function toggleConnect(pharmacyId: string) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return alert("Please sign in first");
+        if (!user) {
+            toast.error("Please sign in first");
+            return;
+        }
+
+        const { connections: connRepo } = createRepositories(supabase);
 
         if (connections.includes(pharmacyId)) {
-            await supabase.from("connections").delete().eq("patient_id", user.id).eq("pharmacy_id", pharmacyId);
-            setConnections(prev => prev.filter(id => id !== pharmacyId));
+            const success = await handleAsyncError(
+                () => connRepo.deleteConnection(user.id, pharmacyId),
+                "Failed to disconnect"
+            );
+            if (success) {
+                setConnections(prev => prev.filter(id => id !== pharmacyId));
+                toast.success("Disconnected from pharmacy");
+            }
         } else {
-            await supabase.from("connections").insert([{ patient_id: user.id, pharmacy_id: pharmacyId }]);
-            setConnections(prev => [...prev, pharmacyId]);
+            const success = await handleAsyncError(
+                () => connRepo.createConnection(user.id, pharmacyId),
+                "Failed to connect"
+            );
+            if (success) {
+                setConnections(prev => [...prev, pharmacyId]);
+                toast.success("Connected to pharmacy");
+            }
         }
     }
 

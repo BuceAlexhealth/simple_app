@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X, Loader } from "lucide-react";
 import Link from "next/link";
+import { handleAsyncError } from "@/lib/error-handling";
+import { createRepositories } from "@/lib/repositories";
 
 interface OrderItem {
     id: string;
@@ -29,6 +31,36 @@ export default function PatientOrdersPage() {
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
+
+    const fetchOrders = useCallback(async () => {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const { orders: ordersRepo } = createRepositories(supabase);
+        const data = await handleAsyncError(
+            () => ordersRepo.getOrdersByUserId(user.id, 'patient'),
+            "Failed to fetch orders"
+        );
+
+        if (data) {
+            const orderData = data as any[];
+            setOrders(orderData);
+
+            // Extract order items from the nested query result
+            const itemsByOrder = orderData.reduce((acc, order) => {
+                if (order.order_items && order.order_items.length > 0) {
+                    acc[order.id] = order.order_items;
+                }
+                return acc;
+            }, {} as Record<string, OrderItem[]>);
+            setOrderItems(itemsByOrder);
+        }
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
         fetchOrders();
@@ -58,46 +90,6 @@ export default function PatientOrdersPage() {
             supabase.removeChannel(channel);
         };
     }, [fetchOrders]);
-
-    async function fetchOrders() {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from("orders")
-            .select("*")
-            .eq("patient_id", user.id)
-            .order("created_at", { ascending: false });
-
-        if (error) console.error("Error fetching orders:", error);
-        else {
-            setOrders(data || []);
-            // Fetch order items for all orders
-            if (data && data.length > 0) {
-                await fetchOrderItems(data);
-            }
-        }
-        setLoading(false);
-    }
-
-    async function fetchOrderItems(orders: Order[]) {
-        const orderIds = orders.map(o => o.id);
-        const { data, error } = await supabase
-            .from("order_items")
-            .select("*, inventory:inventory_id(name)")
-            .in("order_id", orderIds);
-
-        if (error) {
-            console.error("Error fetching order items:", error);
-        } else {
-            const itemsByOrder = (data || []).reduce((acc, item) => {
-                if (!acc[item.order_id]) acc[item.order_id] = [];
-                acc[item.order_id].push(item);
-                return acc;
-            }, {} as Record<string, OrderItem[]>);
-            setOrderItems(itemsByOrder);
-        }
-    }
 
     const getStatusInfo = (status: Order['status']) => {
         switch (status) {

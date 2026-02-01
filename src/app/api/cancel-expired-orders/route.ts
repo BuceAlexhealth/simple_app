@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     return rateLimitResult;
   }
 
-  // 2. Authenticate and authorize user (requires admin/system role)
+  // 2. Authenticate and authorize user (allows any authenticated user)
   try {
-    await requireAuth(request, ["admin", "system"]);
+    await requireAuth(request, ["admin", "system", "patient", "pharmacist", "pharmacy"]);
   } catch (error) {
     const errorData = JSON.parse((error as Error).message);
     return NextResponse.json(
@@ -67,10 +67,10 @@ export async function POST(request: NextRequest) {
 
     if (validatedData.dryRun) {
       console.log(`Dry run: Found ${data.length} expired orders to cancel`);
-      return NextResponse.json({ 
-        cancelled: 0, 
+      return NextResponse.json({
+        cancelled: 0,
         found: data.length,
-        dryRun: true 
+        dryRun: true
       });
     }
 
@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
       stack: (error as Error).stack,
       timestamp: new Date().toISOString()
     });
-    return NextResponse.json({ 
-      cancelled: 0, 
+    return NextResponse.json({
+      cancelled: 0,
       error: 'Failed to process expired orders',
       requestId: crypto.randomUUID()
     }, { status: 500 });

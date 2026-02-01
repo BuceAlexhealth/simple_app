@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import {
     Send,
@@ -34,34 +34,7 @@ export default function PharmacyChatsPage() {
     const messagesEndRef = useRef<null | HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Initial Load
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        fetchPatients();
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Load Messages when patient selected
-    useEffect(() => {
-        if (selectedPatient) {
-            fetchMessages(selectedPatient.id);
-            const unsubscribe = subscribeToMessages(selectedPatient.id);
-            return () => { unsubscribe(); };
-        }
-    }, [selectedPatient]);
-
-    // Scroll to bottom
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    async function fetchPatients() {
+    const fetchPatients = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setCurrentUser(user);
@@ -72,8 +45,6 @@ export default function PharmacyChatsPage() {
             .eq("pharmacy_id", user.id);
 
         if (connections) {
-            // Remove duplicates just in case
-            // Remove duplicates just in case
             const entries = connections.map((c: any) => {
                 const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
                 return [profile?.id, profile] as [string, any];
@@ -83,9 +54,10 @@ export default function PharmacyChatsPage() {
             setPatients(uniquePatients);
         }
         setLoading(false);
-    }
+    }, []);
 
-    async function fetchMessages(patientId: string) {
+    const fetchMessages = useCallback(async (patientId: string) => {
+        if (!currentUser) return;
         const { data } = await supabase
             .from("messages")
             .select("*")
@@ -93,9 +65,10 @@ export default function PharmacyChatsPage() {
             .order("created_at", { ascending: true });
 
         setMessages(data || []);
-    }
+    }, [currentUser]);
 
-    function subscribeToMessages(patientId: string) {
+    const subscribeToMessages = useCallback((patientId: string) => {
+        if (!currentUser) return () => { };
         const channel = supabase
             .channel(`chat:${patientId}`)
             .on(
@@ -113,7 +86,25 @@ export default function PharmacyChatsPage() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }
+    }, [currentUser]);
+
+    // Initial Load
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        fetchPatients();
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [fetchPatients]);
+
+    // Load Messages when patient selected
+    useEffect(() => {
+        if (selectedPatient) {
+            fetchMessages(selectedPatient.id);
+            const unsubscribe = subscribeToMessages(selectedPatient.id);
+            return () => { unsubscribe(); };
+        }
+    }, [selectedPatient, fetchMessages, subscribeToMessages]);
 
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || !e.target.files[0] || !selectedPatient) return;
@@ -422,33 +413,28 @@ function OrderBubble({ msg }: { msg: any }) {
         const isAccepted = msg.content.includes("ORDER_ACCEPTED");
         const isRejected = msg.content.includes("ORDER_REJECTED");
         const isExpired = msg.content.includes("ORDER_EXPIRED");
-        
+
         return (
             <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all ${
-                    isRejected || isExpired ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'
-                }`}
+                className={`w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all ${isRejected || isExpired ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'
+                    }`}
             >
-                <div className={`p-3 flex items-center justify-between ${
-                    isRejected || isExpired ? 'bg-red-100/50' : 'bg-emerald-100/50'
-                }`}>
+                <div className={`p-3 flex items-center justify-between ${isRejected || isExpired ? 'bg-red-100/50' : 'bg-emerald-100/50'
+                    }`}>
                     <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${
-                            isRejected || isExpired ? 'bg-white text-red-500' : 'bg-white text-emerald-500'
-                        }`}>
+                        <div className={`p-1.5 rounded-lg ${isRejected || isExpired ? 'bg-white text-red-500' : 'bg-white text-emerald-500'
+                            }`}>
                             {isExpired ? '⏰' : isRejected ? '❌' : '✓'}
                         </div>
-                        <span className={`text-xs font-bold uppercase tracking-wider ${
-                            isRejected || isExpired ? 'text-red-700' : 'text-emerald-700'
-                        }`}>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${isRejected || isExpired ? 'text-red-700' : 'text-emerald-700'
+                            }`}>
                             {isExpired ? 'Order Expired' : isRejected ? 'Order Rejected' : 'Order Accepted'}
                         </span>
                     </div>
-                    <ExternalLink className={`w-3.5 h-3.5 ${
-                        isRejected || isExpired ? 'text-red-400' : 'text-emerald-400'
-                    }`} />
+                    <ExternalLink className={`w-3.5 h-3.5 ${isRejected || isExpired ? 'text-red-400' : 'text-emerald-400'
+                        }`} />
                 </div>
 
                 <div className="p-4 bg-white/50 space-y-3">
