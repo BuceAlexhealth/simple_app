@@ -411,11 +411,101 @@ export default function PharmacyChatsPage() {
 
 // Subcomponent for Order Bubbles to keep main clear
 function OrderBubble({ msg }: { msg: any }) {
+    const isPharmacyOrder = msg.content.includes("PHARMACY_ORDER_REQUEST");
+    const isOrderResponse = msg.content.includes("ORDER_ACCEPTED") || msg.content.includes("ORDER_REJECTED") || msg.content.includes("ORDER_EXPIRED");
     const isCancelled = msg.content.includes("ORDER_STATUS:cancelled");
     const orderId = msg.content.match(/ORDER_ID:([0-9a-f-]{36})/)?.[1];
-    const total = msg.content.match(/ORDER_TOTAL:([^\\n]+)/)?.[1] || '0.00';
+    const total = msg.content.match(/TOTAL:₹([^\\n]+)/)?.[1] || '0.00';
     const lines = msg.content.split('\n\n')[0];
 
+    if (isOrderResponse) {
+        const isAccepted = msg.content.includes("ORDER_ACCEPTED");
+        const isRejected = msg.content.includes("ORDER_REJECTED");
+        const isExpired = msg.content.includes("ORDER_EXPIRED");
+        
+        return (
+            <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all ${
+                    isRejected || isExpired ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'
+                }`}
+            >
+                <div className={`p-3 flex items-center justify-between ${
+                    isRejected || isExpired ? 'bg-red-100/50' : 'bg-emerald-100/50'
+                }`}>
+                    <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${
+                            isRejected || isExpired ? 'bg-white text-red-500' : 'bg-white text-emerald-500'
+                        }`}>
+                            {isExpired ? '⏰' : isRejected ? '❌' : '✓'}
+                        </div>
+                        <span className={`text-xs font-bold uppercase tracking-wider ${
+                            isRejected || isExpired ? 'text-red-700' : 'text-emerald-700'
+                        }`}>
+                            {isExpired ? 'Order Expired' : isRejected ? 'Order Rejected' : 'Order Accepted'}
+                        </span>
+                    </div>
+                    <ExternalLink className={`w-3.5 h-3.5 ${
+                        isRejected || isExpired ? 'text-red-400' : 'text-emerald-400'
+                    }`} />
+                </div>
+
+                <div className="p-4 bg-white/50 space-y-3">
+                    <p className="text-sm font-medium text-slate-700 leading-relaxed">
+                        Customer response: {msg.content.match(/RESPONSE:([^\\n]+)/)?.[1] || 'No response message'}
+                    </p>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/50">
+                        <div className="text-xs text-slate-500">
+                            Order <span className="font-mono text-slate-700">#{orderId?.slice(0, 8)}</span>
+                        </div>
+                        <div className="font-bold text-slate-900">
+                            ₹{total}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    if (isPharmacyOrder) {
+        return (
+            <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => orderId && (window.location.href = `/pharmacy#order-${orderId}`)}
+                className="w-full max-w-sm rounded-2xl overflow-hidden border-2 transition-all cursor-pointer bg-indigo-50 border-indigo-100"
+            >
+                <div className="p-3 flex items-center justify-between bg-indigo-100/50">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-white text-indigo-500">
+                            <Package className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                            Your Order Request
+                        </span>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                </div>
+
+                <div className="p-4 bg-white/50 space-y-3">
+                    <p className="text-sm font-medium text-slate-700 leading-relaxed">
+                        Order sent to customer for acceptance
+                    </p>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200/50">
+                        <div className="text-xs text-slate-500">
+                            Order <span className="font-mono text-slate-700">#{orderId?.slice(0, 8)}</span>
+                        </div>
+                        <div className="font-bold text-slate-900">
+                            ₹{total}
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    // Regular order notification
     return (
         <motion.div
             whileHover={{ scale: 1.02 }}

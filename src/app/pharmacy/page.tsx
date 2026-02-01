@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CheckCircle2, Clock, Package, AlertCircle, RefreshCw, Share2, Copy, Store, Loader, X, ArrowRight } from "lucide-react";
+import { CheckCircle2, Clock, Package, AlertCircle, RefreshCw, Share2, Copy, Store, Loader, X, ArrowRight, Plus, Filter } from "lucide-react";
 import Link from "next/link";
-import { Order, InventoryItem, OrderStatus } from "@/types";
+import { Order, InventoryItem, OrderStatus, InitiatorType, AcceptanceStatus } from "@/types";
 
 interface OrderItem {
     id: string;
@@ -32,6 +32,7 @@ export default function PharmacyOrdersPage() {
     const [copied, setCopied] = useState(false);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
+    const [orderFilter, setOrderFilter] = useState<'all' | 'patient' | 'pharmacy'>('all');
 
     useEffect(() => {
         setupInviteLink();
@@ -192,7 +193,12 @@ export default function PharmacyOrdersPage() {
         toast.success("EOD adjustments applied successfully!");
     }
 
-    const getBadgeVariant = (status: OrderStatus) => {
+    const getBadgeVariant = (status: OrderStatus, acceptanceStatus?: AcceptanceStatus, initiatorType?: InitiatorType) => {
+        // Handle pharmacy-initiated orders with pending acceptance
+        if (initiatorType === 'pharmacy' && acceptanceStatus === 'pending') {
+            return "secondary"; // gray for pending
+        }
+        
         switch (status) {
             case 'placed': return "warning";
             case 'ready': return "default"; // blue/primary
@@ -200,6 +206,14 @@ export default function PharmacyOrdersPage() {
             case 'cancelled': return "destructive";
             default: return "secondary";
         }
+    };
+
+    const getOrderStatusText = (order: Order) => {
+        if (order.initiator_type === 'pharmacy') {
+            if (order.acceptance_status === 'pending') return 'Pending Acceptance';
+            if (order.acceptance_status === 'rejected') return 'Rejected';
+        }
+        return order.status;
     };
 
     const toggleOrderExpansion = (orderId: string) => {
@@ -241,6 +255,46 @@ export default function PharmacyOrdersPage() {
                     <h2 className="text-3xl font-bold tracking-tight text-slate-900">Active Orders</h2>
                     <p className="text-slate-500">Track and fulfill prescriptions from your patients.</p>
                 </div>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1">
+                        <button
+                            onClick={() => setOrderFilter('all')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                orderFilter === 'all' 
+                                    ? 'bg-white text-slate-900 shadow-sm' 
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            All Orders
+                        </button>
+                        <button
+                            onClick={() => setOrderFilter('patient')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                orderFilter === 'patient' 
+                                    ? 'bg-white text-slate-900 shadow-sm' 
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Patient Orders
+                        </button>
+                        <button
+                            onClick={() => setOrderFilter('pharmacy')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                orderFilter === 'pharmacy' 
+                                    ? 'bg-white text-slate-900 shadow-sm' 
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Your Orders
+                        </button>
+                    </div>
+                    <Link href="/pharmacy/create-order">
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Order
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Branded Share Card */}
@@ -281,7 +335,14 @@ export default function PharmacyOrdersPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
-                    {orders.map((order) => {
+                    {orders
+                        .filter(order => {
+                            if (orderFilter === 'all') return true;
+                            if (orderFilter === 'patient') return order.initiator_type !== 'pharmacy';
+                            if (orderFilter === 'pharmacy') return order.initiator_type === 'pharmacy';
+                            return true;
+                        })
+                        .map((order) => {
                         const isExpanded = expandedOrderId === order.id;
                         const items = orderItems[order.id] || [];
 
@@ -294,8 +355,8 @@ export default function PharmacyOrdersPage() {
                                                 <span className="text-xs font-mono font-bold text-slate-400">
                                                     #{order.id.slice(0, 8)}
                                                 </span>
-                                                <Badge variant={getBadgeVariant(order.status)}>
-                                                    {order.status}
+                                                <Badge variant={getBadgeVariant(order.status, order.acceptance_status, order.initiator_type)}>
+                                                    {getOrderStatusText(order)}
                                                 </Badge>
                                             </div>
                                             <p className="text-2xl font-bold text-slate-900">₹{order.total_price}</p>
@@ -352,7 +413,15 @@ export default function PharmacyOrdersPage() {
                                             {isExpanded ? 'Hide' : 'View'} Details
                                             {isExpanded ? <X className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
                                         </button>
-                                        {order.status === 'placed' && (
+                                        {order.initiator_type === 'pharmacy' && order.acceptance_status === 'pending' && (
+                                            <div className="flex-1 text-center">
+                                                <div className="text-sm text-slate-500 font-medium">
+                                                    <Clock className="w-4 h-4 inline mr-1" />
+                                                    Waiting for customer acceptance
+                                                </div>
+                                            </div>
+                                        )}
+                                        {order.status === 'placed' && order.initiator_type !== 'pharmacy' && (
                                             <Button
                                                 className="flex-1"
                                                 onClick={() => updateStatus(order.id, 'ready')}

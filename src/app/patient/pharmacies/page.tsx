@@ -81,7 +81,7 @@ export default function PharmaciesPage() {
                     {filteredPharmacies.map((pharma) => {
                         const isConnected = connections.includes(pharma.id);
                         return (
-                            <div key={pharma.id} className="app-card flex items-center justify-between p-6">
+                            <div key={pharma.id} className="card-style flex items-center justify-between p-6">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-[var(--primary)]">
                                         <Store className="w-6 h-6" />

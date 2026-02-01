@@ -59,12 +59,26 @@
   }
 
   /* Consistent Card Styles */
-  .app-card {
-    @apply bg-white p-6 rounded-[var(--radius-lg)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)] transition-all;
+  .card-style {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: all 150ms;
   }
-
-  .app-card-interactive {
-    @apply app-card cursor-pointer hover:scale-[1.01] active:scale-[0.99];
+  .card-style:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary);
+  }
+  .card-style-interactive {
+    cursor: pointer;
+  }
+  .card-style-interactive:hover {
+    transform: scale(1.01);
+  }
+  .card-style-interactive:active {
+    transform: scale(0.99);
   }
 
   /* Consistent Button Styles */
@@ -82,7 +96,7 @@
 
   /* Consistent Input Styles */
   .input-field {
-    @apply w-full bg-white rounded-[var(--radius-md)] px-4 py-3 outline-none text-sm border border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] focus:ring-opacity-20 focus:border-[var(--primary)] transition-all placeholder:text-slate-400;
+    @apply w-full bg-white rounded-[var(--radius-md)] px-4 py-3 outline-none text-sm border border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)] transition-all placeholder:text-slate-400;
   }
 
   /* Consistent Badge Styles */

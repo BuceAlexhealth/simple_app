@@ -1,4 +1,6 @@
 export type OrderStatus = 'placed' | 'ready' | 'complete' | 'cancelled';
+export type InitiatorType = 'patient' | 'pharmacy';
+export type AcceptanceStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface InventoryItem {
     id: string;
@@ -23,4 +25,8 @@ export interface Order {
     pharmacy_id: string;
     total_price: number;
     status: OrderStatus;
+    initiator_type?: InitiatorType;
+    acceptance_status?: AcceptanceStatus;
+    acceptance_deadline?: string;
+    pharmacy_notes?: string;
 }
