@@ -11,6 +11,9 @@ interface OrderItem {
     inventory_id: string;
     quantity: number;
     price_at_time: number;
+    inventory?: {
+        name: string;
+    };
 }
 
 interface Order {
@@ -81,7 +84,7 @@ export default function PatientOrdersPage() {
         const orderIds = orders.map(o => o.id);
         const { data, error } = await supabase
             .from("order_items")
-            .select("*")
+            .select("*, inventory:inventory_id(name)")
             .in("order_id", orderIds);
 
         if (error) {
@@ -161,7 +164,7 @@ export default function PatientOrdersPage() {
                         const items = orderItems[order.id] || [];
 
                         return (
-                            <div key={order.id} id={`order-${order.id}`} className={`app-card border-none bg-white p-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}>
+                            <div key={order.id} id={`order-${order.id}`} className={`card-style border-none bg-white p-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}>
                                 <div className="p-6">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex flex-col">
@@ -204,7 +207,7 @@ export default function PatientOrdersPage() {
                                                 {items.map((item, index) => (
                                                     <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded-lg">
                                                         <span className="font-medium text-slate-700">
-                                                            Item {index + 1}
+                                                            {(item as any).inventory?.name || `Item ${index + 1}`}
                                                         </span>
                                                         <div className="text-right">
                                                             <span className="text-slate-600">Qty: {item.quantity}</span>

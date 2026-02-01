@@ -12,6 +12,9 @@ interface OrderItem {
     inventory_id: string;
     quantity: number;
     price_at_time: number;
+    inventory?: {
+        name: string;
+    };
 }
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -98,7 +101,7 @@ export default function PharmacyOrdersPage() {
         const orderIds = orders.map(o => o.id);
         const { data, error } = await supabase
             .from("order_items")
-            .select("*")
+            .select("*, inventory:inventory_id(name)")
             .in("order_id", orderIds);
 
         if (error) {
@@ -321,7 +324,7 @@ export default function PharmacyOrdersPage() {
                                                 {items.map((item, index) => (
                                                     <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded-lg">
                                                         <span className="font-medium text-slate-700">
-                                                            Item {index + 1}
+                                                            {(item as any).inventory?.name || `Item ${index + 1}`}
                                                         </span>
                                                         <div className="text-right">
                                                             <span className="text-slate-600">Qty: {item.quantity}</span>
