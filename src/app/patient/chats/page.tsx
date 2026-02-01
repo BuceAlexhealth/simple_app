@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { getErrorMessage } from "@/lib/error-handling";
 
 export default function PatientChatsPage() {
     // Data State
@@ -132,11 +133,9 @@ export default function PatientChatsPage() {
                 .getPublicUrl(filePath);
 
             await sendMessage(null, publicUrl);
-        } catch (error: any) {
-            alert('Error uploading image: ' + error.message);
-        } finally {
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+            toast.error(getErrorMessage(error));
         }
     }
 

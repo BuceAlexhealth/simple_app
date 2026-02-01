@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Plus, Search, Package, User, CheckCircle2, AlertCircle, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-handling";
 
 interface ConnectedPatient {
     id: string;
@@ -82,12 +82,14 @@ export default function CreateOrderPage() {
         }
     }
 
-    const filteredInventory = inventory.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        item.stock > 0
+    const filteredInventory = useMemo(() => 
+        inventory.filter(item =>
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            item.stock > 0
+        ), [inventory, searchQuery]
     );
 
-    function addToCart(item: InventoryItem) {
+    const addToCart = useCallback((item: InventoryItem) => {
         if (item.stock <= 0) {
             toast.error("Item is out of stock");
             return;
@@ -101,17 +103,17 @@ export default function CreateOrderPage() {
 
         setCart([...cart, item]);
         toast.success(`${item.name} added to cart`);
-    }
+    }, [cart]);
 
-    function removeFromCart(itemId: string) {
+    const removeFromCart = useCallback((itemId: string) => {
         setCart(cart.filter(item => item.id !== itemId));
-    }
+    }, [cart]);
 
-    function calculateTotal() {
+    const calculateTotal = useCallback(() => {
         return cart.reduce((total, item) => total + item.price, 0);
-    }
+    }, [cart]);
 
-    async function submitOrder() {
+    const submitOrder = useCallback(async () => {
         if (!selectedPatient) {
             toast.error("Please select a patient");
             return;
@@ -178,13 +180,13 @@ export default function CreateOrderPage() {
             toast.success("Order sent to patient for acceptance");
             router.push("/pharmacy");
 
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error creating order:", error);
-            toast.error("Failed to create order: " + error.message);
+            toast.error("Failed to create order: " + getErrorMessage(error));
         } finally {
             setIsSubmitting(false);
         }
-    }
+    }, [selectedPatient, cart, pharmacyNotes, router, calculateTotal]);
 
     if (loading) {
         return (

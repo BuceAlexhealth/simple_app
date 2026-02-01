@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, ShoppingCart, X, Store, Loader, Plus, Minus, MessageCircle, ArrowRight } from "lucide-react";
+import { Search, ShoppingCart, MessageCircle, ArrowRight, Store } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InventoryItem, CartItem } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -12,19 +12,65 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { SkeletonCard } from "@/components/ui/SkeletonCard";
+import { debounce, storage } from "@/lib/utils-performance";
+import dynamic from 'next/dynamic';
+
+// Dynamic imports for better code splitting
+const VirtualizedMedicationList = dynamic(
+  () => import("@/components/patient/VirtualizedMedicationList").then(mod => ({ default: mod.VirtualizedMedicationList })),
+  { 
+    loading: () => <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SkeletonCard count={6} /></div>,
+    ssr: false 
+  }
+);
+
+const OrderConfirmationModal = dynamic(
+  () => import("@/components/patient/OrderConfirmationModal").then(mod => ({ default: mod.OrderConfirmationModal })),
+  { 
+    loading: () => null,
+    ssr: false 
+  }
+);
+
+const MedicationCard = dynamic(
+  () => import("@/components/patient/MedicationCard").then(mod => ({ default: mod.MedicationCard })),
+  { 
+    ssr: false 
+  }
+);
 
 export default function PatientSearchPage() {
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [connectedPharmacies, setConnectedPharmacies] = useState<any[]>([]);
     const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isOrdering, setIsOrdering] = useState(false);
+    const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    // Load cart from localStorage on mount
+    useEffect(() => {
+        const savedCart = storage.get('patient_cart');
+        if (savedCart) {
+            setCart(savedCart);
+        }
+    }, []);
+
+    // Debounced search effect
+    useEffect(() => {
+        const debouncedSearchHandler = debounce((value: string) => {
+            setDebouncedSearch(value);
+        }, 300);
+
+        debouncedSearchHandler(search);
+    }, [search]);
+
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     async function fetchData() {
         setLoading(true);
@@ -70,11 +116,24 @@ export default function PatientSearchPage() {
         setLoading(false);
     }
 
-    const filteredItems = items.filter(item =>
-        item.name.toLowerCase().trim().includes(search.toLowerCase().trim())
-    );
+    // Memoized filtered items to prevent unnecessary re-renders
+    const filteredItems = useMemo(() => {
+        if (!debouncedSearch.trim()) return items;
+        return items.filter(item =>
+            item.name.toLowerCase().trim().includes(debouncedSearch.toLowerCase().trim())
+        );
+    }, [items, debouncedSearch]);
 
-    const addToCart = (item: InventoryItem) => {
+    // Save cart to localStorage whenever it changes
+    useEffect(() => {
+        if (cart.length > 0) {
+            storage.set('patient_cart', cart);
+        } else {
+            storage.remove('patient_cart');
+        }
+    }, [cart]);
+
+    const addToCart = useCallback((item: InventoryItem) => {
         if (item.stock <= 0) return;
 
         setCart(prev => {
@@ -86,14 +145,14 @@ export default function PatientSearchPage() {
             toast.success(`Added ${item.name} to cart`);
             return [...prev, { ...item, quantity: 1 }];
         });
-    };
+    }, []);
 
-    const removeFromCart = (itemId: string) => {
+    const removeFromCart = useCallback((itemId: string) => {
         setCart(prev => prev.filter(i => i.id !== itemId));
         toast.info("Removed from cart");
-    };
+    }, []);
 
-    const updateQuantity = (itemId: string, delta: number) => {
+    const updateQuantity = useCallback((itemId: string, delta: number) => {
         setCart(prev => {
             const item = prev.find(i => i.id === itemId);
             if (!item) return prev;
@@ -101,7 +160,7 @@ export default function PatientSearchPage() {
             const newQuantity = Math.max(1, item.quantity + delta);
             return prev.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i);
         });
-    };
+    }, []);
 
     const sendOrderNotificationToPharmacy = async (order: any, patientId: string, pharmacyId: string) => {
         try {
@@ -130,7 +189,10 @@ export default function PatientSearchPage() {
 
     const placeOrder = async () => {
         if (cart.length === 0) return;
+        setShowOrderConfirmation(true);
+    };
 
+    const confirmOrder = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             toast.error("Please sign in to place an order");
@@ -183,11 +245,43 @@ export default function PatientSearchPage() {
             router.push("/patient/orders");
         }
         setIsOrdering(false);
+        setShowOrderConfirmation(false);
     };
 
+    const cancelOrder = () => {
+        setShowOrderConfirmation(false);
+    };
+
+    // Memoized cart total to prevent unnecessary recalculations
+    const cartTotal = useMemo(() => 
+        cart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2), [cart]
+    );
+
     if (loading) return (
-        <div className="loading-container">
-            <Loader className="loading-spinner" />
+        <div className="container mx-auto p-4 md:p-6 pb-24 space-y-8">
+            {/* Skeleton Header */}
+            <header className="flex items-center justify-between">
+                <div className="section-header">
+                    <div className="h-8 w-32 bg-slate-100 rounded animate-pulse mb-2"></div>
+                    <div className="h-4 w-24 bg-slate-100 rounded animate-pulse"></div>
+                </div>
+                <div className="w-12 h-12 bg-slate-100 rounded-full animate-pulse"></div>
+            </header>
+
+            {/* Skeleton Search */}
+            <section>
+                <div className="mb-4">
+                    <div className="h-6 w-32 bg-slate-100 rounded animate-pulse"></div>
+                </div>
+                <div className="relative mb-6">
+                    <div className="h-12 w-full bg-slate-100 rounded-2xl animate-pulse"></div>
+                </div>
+                
+                {/* Skeleton Medication Cards */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <SkeletonCard count={6} />
+                </div>
+            </section>
         </div>
     );
 
@@ -260,9 +354,14 @@ export default function PatientSearchPage() {
                     <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                     <Input
                         placeholder="Search for medication (e.g. Aspirin)..."
-                        className="pl-12 h-12 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
+                        className="pl-12 h-12 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all text-lg"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        inputMode="text"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
                     />
                 </div>
 
@@ -280,58 +379,13 @@ export default function PatientSearchPage() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {filteredItems.map((item) => (
-                            <div key={item.id} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all flex flex-col">
-                                <div className="mb-3 flex items-start justify-between">
-                                    <div className="rounded-lg bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                        {item.profiles?.full_name || "Pharmacy"}
-                                    </div>
-                                    <span className="font-bold text-lg text-slate-900">₹{item.price}</span>
-                                </div>
-                                <h3 className="mb-1 truncate text-base font-bold text-slate-800" title={item.name}>
-                                    {item.name}
-                                </h3>
-                                <div className="mt-auto pt-4 space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className={`text-xs font-bold ${item.stock > 0 ? "text-emerald-600" : "text-rose-500"}`}>
-                                            {item.stock > 0 ? "In Stock" : "Out of Stock"}
-                                        </span>
-                                        <span className="text-xs text-slate-400 font-medium">{item.stock} units</span>
-                                    </div>
-
-                                    {cart.find(i => i.id === item.id) ? (
-                                        <div className="flex items-center justify-between bg-slate-50 rounded-xl p-1">
-                                            <button
-                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 transition-colors"
-                                                onClick={() => updateQuantity(item.id, -1)}
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </button>
-                                            <span className="text-sm font-bold text-slate-900">
-                                                {cart.find(i => i.id === item.id)?.quantity || 0}
-                                            </span>
-                                            <button
-                                                className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 transition-colors"
-                                                onClick={() => updateQuantity(item.id, 1)}
-                                                disabled={item.stock <= (cart.find(i => i.id === item.id)?.quantity || 0)}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <Button
-                                            className="w-full bg-slate-900 hover:bg-indigo-600 text-white rounded-xl h-10 transition-colors"
-                                            disabled={item.stock <= 0}
-                                            onClick={() => addToCart(item)}
-                                        >
-                                            Add to Cart
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <VirtualizedMedicationList
+                        items={filteredItems}
+                        cart={cart}
+                        onAddToCart={addToCart}
+                        onUpdateQuantity={updateQuantity}
+                        maxVisible={6}
+                    />
                 )}
             </section>
 
@@ -347,7 +401,7 @@ export default function PatientSearchPage() {
                             <div>
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</p>
                                 <p className="text-2xl font-black text-slate-900">
-                                    ₹{cart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)}
+                                    ₹{cartTotal}
                                 </p>
                             </div>
                             <div className="flex gap-3">
@@ -371,6 +425,16 @@ export default function PatientSearchPage() {
                     <MessageCircle className="w-6 h-6" />
                 </motion.button>
             </Link>
+
+            {/* Order Confirmation Modal */}
+            <OrderConfirmationModal
+                isOpen={showOrderConfirmation}
+                cart={cart}
+                total={parseFloat(cartTotal)}
+                onConfirm={confirmOrder}
+                onCancel={cancelOrder}
+                isOrdering={isOrdering}
+            />
         </div>
     );
 }

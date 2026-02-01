@@ -22,7 +22,7 @@ export default function InventoryPage() {
 
     useEffect(() => {
         fetchInventory();
-    }, []);
+    }, [fetchInventory]);
 
     async function fetchInventory() {
         setLoading(true);

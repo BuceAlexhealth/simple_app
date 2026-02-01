@@ -57,7 +57,7 @@ export default function PatientOrdersPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [fetchOrders]);
 
     async function fetchOrders() {
         const { data: { user } } = await supabase.auth.getUser();

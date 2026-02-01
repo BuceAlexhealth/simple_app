@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { ArrowLeft, Search, Store, ClipboardList, Package, LogOut, MessageCircle } from "lucide-react";
+import { ArrowLeft, Store, ClipboardList, Package, LogOut, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";

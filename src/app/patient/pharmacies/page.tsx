@@ -12,7 +12,7 @@ export default function PharmaciesPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     async function fetchData() {
         setLoading(true);

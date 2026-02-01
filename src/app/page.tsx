@@ -245,7 +245,7 @@ export default function Home() {
                 </button>
               </div>
               <p className="text-slate-600 mb-4">
-                Pharmacy access requires professional verification. You'll need to provide:
+                Pharmacy access requires professional verification. You&apos;ll need to provide:
               </p>
               <ul className="text-sm text-slate-500 space-y-2 mb-4">
                 <li>• Professional license number</li>
