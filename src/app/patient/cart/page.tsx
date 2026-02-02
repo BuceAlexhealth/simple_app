@@ -180,7 +180,7 @@ export default function PatientCartPage() {
                         <p className="text-sm text-[var(--text-muted)]">Browse your local pharmacies to find what you need.</p>
                     </div>
                     <Link href="/patient">
-                        <Button variant="gradient" className="px-10 h-14 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg glow-primary">
+                        <Button variant="default" className="px-10 h-14 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg glow-primary">
                             Explore Medications
                         </Button>
                     </Link>
@@ -293,7 +293,7 @@ export default function PatientCartPage() {
                                 <Button
                                     onClick={confirmOrder}
                                     isLoading={isOrdering}
-                                    variant="gradient"
+                                    variant="default"
                                     className="w-full h-16 rounded-2xl font-black uppercase tracking-[0.15em] text-xs shadow-xl glow-primary hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group/btn"
                                 >
                                     Confirm Order

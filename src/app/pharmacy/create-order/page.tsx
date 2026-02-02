@@ -132,8 +132,6 @@ export default function CreateOrderPage() {
                 total_price: calculateTotal(),
                 status: 'placed',
                 initiator_type: 'pharmacy',
-                acceptance_status: 'pending',
-                acceptance_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
                 pharmacy_notes: pharmacyNotes || null
             };
 
@@ -156,7 +154,7 @@ export default function CreateOrderPage() {
             if (itemsError) throw itemsError;
 
             // Send chat message to patient
-            const orderMessage = `PHARMACY_ORDER_REQUEST\nORDER_ID:${order.id}\nPATIENT:${selectedPatient.full_name}\nTOTAL:₹${calculateTotal().toFixed(2)}\nITEMS:${cart.map(item => item.name).join(', ')}\nNOTES:${pharmacyNotes || 'None'}\nSTATUS:Pending Acceptance\nDEADLINE:${new Date(order.acceptance_deadline).toLocaleString()}`;
+            const orderMessage = `PHARMACY_ORDER_REQUEST\nORDER_ID:${order.id}\nPATIENT:${selectedPatient.full_name}\nTOTAL:₹${calculateTotal().toFixed(2)}\nITEMS:${cart.map(item => item.name).join(', ')}\nNOTES:${pharmacyNotes || 'None'}\nSTATUS:Pending Acceptance`;
 
             await messages.sendMessage({
                 sender_id: user.id,
@@ -339,7 +337,7 @@ export default function CreateOrderPage() {
                                                             </div>
                                                             <Button
                                                                 size="icon"
-                                                                variant={inCart ? "gradient" : "outline"}
+                                                                variant={inCart ? "default" : "outline"}
                                                                 onClick={() => !inCart && addToCart(item)}
                                                                 className={`h-10 w-10 rounded-xl transition-all ${inCart ? 'shadow-lg' : ''}`}
                                                                 disabled={inCart}
@@ -427,7 +425,7 @@ export default function CreateOrderPage() {
                                             </div>
 
                                             <Button
-                                                variant="gradient"
+                                                variant="default"
                                                 onClick={submitOrder}
                                                 disabled={isSubmitting || cart.length === 0}
                                                 className="w-full h-16 rounded-2xl text-sm font-black uppercase tracking-widest shadow-2xl glow-primary"
@@ -439,10 +437,7 @@ export default function CreateOrderPage() {
                                                 )}
                                             </Button>
 
-                                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-[9px] font-bold text-white/60 leading-relaxed italic">
-                                                <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />
-                                                This order request will expire automatically if not accepted by the customer within 24 hours.
-                                            </div>
+                                            
                                         </div>
                                     </div>
                                 </Card>

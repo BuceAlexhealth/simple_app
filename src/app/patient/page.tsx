@@ -292,7 +292,7 @@ export default function PatientSearchPage() {
                                 </p>
                             </div>
                             <Link href="/patient/pharmacies">
-                                <Button variant="gradient" className="px-8 h-12 rounded-xl">Browse Pharmacies</Button>
+                                <Button variant="default" className="px-8 h-12 rounded-xl">Browse Pharmacies</Button>
                             </Link>
                         </div>
                     ) : (
@@ -372,7 +372,7 @@ export default function PatientSearchPage() {
                                     </Button>
                                     <Button
                                         onClick={placeOrder}
-                                        variant="gradient"
+                                        variant="default"
                                         className="flex-1 md:flex-none h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl glow-primary hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                                     >
                                         Review & Checkout

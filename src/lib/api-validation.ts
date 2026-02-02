@@ -4,11 +4,7 @@ import { z } from "zod";
  * Validation schemas for API endpoints
  */
 
-export const CancelExpiredOrdersSchema = z.object({
-  // No body required for this endpoint, but we validate optional parameters
-  dryRun: z.boolean().optional().default(false),
-  batchSize: z.number().int().min(1).max(100).optional().default(50)
-});
+
 
 export const OrderStatusUpdateSchema = z.object({
   orderId: z.string().uuid("Invalid order ID format"),

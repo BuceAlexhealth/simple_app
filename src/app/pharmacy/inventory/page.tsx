@@ -151,7 +151,7 @@ export default function InventoryPage() {
 
                 <div className="flex items-center gap-4">
                     <Button
-                        variant="gradient"
+                        variant="default"
                         onClick={() => setIsAdding(true)}
                         className="h-12 w-full sm:w-auto px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary scale-in"
                     >
@@ -263,7 +263,7 @@ export default function InventoryPage() {
                                 </div>
                                 <div className="flex flex-col sm:flex-row justify-end gap-3 mt-10">
                                     <Button variant="ghost" className="w-full sm:w-auto px-8 rounded-xl font-bold" onClick={() => setIsAdding(false)}>Dismiss</Button>
-                                    <Button variant="gradient" className="w-full sm:w-auto px-10 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary" onClick={handleAddItem}>Register Product</Button>
+                                    <Button variant="default" className="w-full sm:w-auto px-10 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary" onClick={handleAddItem}>Register Product</Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -367,7 +367,7 @@ export default function InventoryPage() {
                                                 <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-[var(--border)] border-dashed">
                                                     <Button variant="ghost" className="w-full sm:w-auto px-6 h-11 rounded-xl font-bold" onClick={() => setEditingItem(null)}>Cancel</Button>
                                                     <Button
-                                                        variant="gradient"
+                                                        variant="default"
                                                         className="w-full sm:w-auto px-8 h-11 rounded-xl font-black uppercase tracking-widest text-xs glow-primary"
                                                         onClick={handleUpdateItem}
                                                     >
@@ -485,7 +485,7 @@ export default function InventoryPage() {
                                 </p>
                             </div>
                             <Button
-                                variant="gradient"
+                                variant="default"
                                 onClick={() => setIsAdding(true)}
                                 className="h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl glow-primary"
                             >

@@ -88,7 +88,7 @@ export function OrderList({ filter }: OrderListProps) {
               items={items}
               isExpanded={isExpanded}
               onToggleExpand={() => toggleOrderExpansion(order.id)}
-              onUpdateStatus={updateStatus}
+              onUpdateStatus={(orderId, newStatus) => updateStatus({ orderId, newStatus })}
             />
           );
         })}

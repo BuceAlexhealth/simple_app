@@ -3,8 +3,10 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import OrderExpiryChecker from "@/components/OrderExpiryChecker";
+
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { UserProvider } from "@/contexts/UserContext";
+import { ReactQueryProvider } from "@/providers/ReactQueryProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,13 +29,16 @@ export default function RootLayout({
       <body
         className={`${inter.variable} antialiased`}
       >
-        <ThemeProvider>
-          <ErrorBoundary>
-            <OrderExpiryChecker />
-            {children}
-            <Toaster position="top-center" richColors />
-          </ErrorBoundary>
-        </ThemeProvider>
+<ReactQueryProvider>
+          <ThemeProvider>
+            <UserProvider>
+              <ErrorBoundary>
+                {children}
+                <Toaster position="top-center" richColors />
+              </ErrorBoundary>
+            </UserProvider>
+          </ThemeProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );

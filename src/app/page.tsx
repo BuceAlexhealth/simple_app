@@ -1,116 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
 import { Activity, LogIn, UserPlus, Loader2, Pill, Stethoscope, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/Card";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Home() {
-  const router = useRouter();
+  const { login, signup, loading, user } = useUser();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role] = useState<"patient" | "pharmacist">("patient");
   const [fullName, setFullName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  async function checkUser() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-
-        if (profile) {
-          router.replace(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-          return;
-        }
-      }
-    } catch (err) {
-      console.error("CheckUser error:", err);
-    } finally {
-      setInitialLoading(false);
-    }
+  // Redirect if already authenticated
+  if (user) {
+    return null; // UserContext will handle redirection
   }
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          toast.error(error.message);
-        } else if (data.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", data.user.id)
-            .single();
-
-          if (profile) {
-            toast.success("Welcome back!");
-            router.replace(profile.role === "pharmacist" ? "/pharmacy" : "/patient");
-          } else {
-            toast.error("Profile not found. Please contact support.");
-          }
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName, role: role }
-          }
-        });
-
-        if (error) {
-          toast.error(error.message);
-        } else if (data.user) {
-          const { error: insertError } = await supabase.from("profiles").insert([{
-            id: data.user.id,
-            role: role,
-            full_name: fullName
-          }]);
-
-          if (insertError) {
-            console.error("Profile creation error:", insertError);
-            toast.error("Error creating profile. Please try again.");
-            return;
-          }
-
-          if (data.session) {
-            toast.success("Account created successfully!");
-            router.replace("/patient");
-          } else {
-            toast.success("Account created! Please check your email to verify.");
-            setIsLogin(true);
-          }
-        }
+    
+    if (isLogin) {
+      await login(email, password);
+    } else {
+      await signup(email, password, fullName, role);
+      if (!loading) {
+        setIsLogin(true);
       }
-    } catch (err: any) {
-      toast.error("An unexpected error occurred: " + err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (initialLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--app-bg)]">
         <div className="relative">
@@ -225,7 +149,7 @@ export default function Home() {
                 </div>
                 <Input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="•••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

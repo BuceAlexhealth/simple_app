@@ -143,7 +143,7 @@ export default function PatientOrdersPage() {
                     <p className="text-sm font-medium text-[var(--text-muted)]">Track and manage your medical orders.</p>
                 </div>
                 <Link href="/patient">
-                    <Button variant="gradient" className="rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary">
+                    <Button variant="default" className="rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary">
                         <ShoppingBag className="w-4 h-4 mr-2" /> New Order
                     </Button>
                 </Link>

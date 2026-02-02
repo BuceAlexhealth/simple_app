@@ -33,7 +33,7 @@ export default function PharmacyOrdersPage() {
                         />
                     </div>
                     <Link href="/pharmacy/create-order" className="w-full sm:w-auto">
-                        <Button variant="gradient" className="w-full sm:w-auto h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary scale-in">
+                        <Button variant="default" className="w-full sm:w-auto h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary scale-in">
                             <Plus className="w-4 h-4 mr-2" />
                             New Order
                         </Button>

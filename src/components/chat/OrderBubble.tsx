@@ -27,7 +27,7 @@ export function OrderBubble({ msg, role, currentUser, selectedConnection }: Orde
     const items = msg.content.match(/ITEMS:([^\\n]+)/)?.[1] || 'Items';
     const notes = msg.content.match(/NOTES:([^\\n]+)/)?.[1] || 'None';
     const statusLine = msg.content.match(/STATUS:([^\\n]+)/)?.[1] || 'Unknown';
-    const deadlineLine = msg.content.match(/DEADLINE:([^\\n]+)/)?.[1];
+    
     const lines = msg.content.split('\n\n')[0]; // First section of text
     const responseText = msg.content.match(/RESPONSE:([^\\n]+)/)?.[1];
 
@@ -136,7 +136,7 @@ export function OrderBubble({ msg, role, currentUser, selectedConnection }: Orde
         }
 
         const isPending = orderStatus === 'pending' || (!orderStatus && statusLine.includes('Pending'));
-        const isExpired = deadlineLine && new Date(deadlineLine) < new Date();
+        const isExpired = false; // Remove expiry logic - orders no longer expire
         const isAccepted = orderStatus === 'accepted';
         const isRejected = orderStatus === 'rejected';
 
@@ -176,9 +176,9 @@ export function OrderBubble({ msg, role, currentUser, selectedConnection }: Orde
                                         'Order Request'}
                         </span>
                     </div>
-                    {isPending && !isExpired && (
+{isPending && (
                         <div className="text-xs text-indigo-600 font-medium">
-                            {deadlineLine && `Expires: ${new Date(deadlineLine).toLocaleDateString()}`}
+                            Pending Acceptance
                         </div>
                     )}
                 </div>
@@ -254,12 +254,12 @@ export function OrderBubble({ msg, role, currentUser, selectedConnection }: Orde
                                 {isExpired ? 'Order Expired' : isRejected ? 'Order Rejected' : 'Order Accepted'}
                             </span>
                         </div>
-                        <ExternalLink className={`w-3.5 h-3.5 ${isRejected || isExpired ? 'text-red-400' : 'text-emerald-400'}`} />
+                        <ExternalLink className={`w-3.5 h-3.5 ${isRejected ? 'text-red-400' : 'text-emerald-400'}`} />
                     </div>
 
                     <div className="p-4 bg-white/50 space-y-3">
                         <p className="text-sm font-medium text-slate-700 leading-relaxed">
-                            {responseText ? `Customer response: ${responseText}` : (isExpired ? 'The order expired before acceptance.' : 'Status updated.')}
+                            {responseText ? `Customer response: ${responseText}` : 'Status updated.'}
                         </p>
                         <div className="flex items-center justify-between pt-3 border-t border-slate-200/50">
                             <div className="text-xs text-slate-500">Order #{orderId?.slice(0, 8)}</div>

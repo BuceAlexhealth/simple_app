@@ -33,24 +33,25 @@ export function OrderCard({
   onToggleExpand,
   onUpdateStatus
 }: OrderCardProps) {
-  const getBadgeVariant = (status: OrderStatus, acceptanceStatus?: string, initiatorType?: string) => {
-    if (initiatorType === 'pharmacy' && acceptanceStatus === 'pending') {
-      return "secondary";
+const getBadgeVariant = (status: OrderStatus, initiatorType?: string) => {
+    if (initiatorType === 'pharmacy' && status === 'placed') {
+      return "secondary"; // Waiting for patient acceptance
     }
 
     switch (status) {
       case 'placed': return "warning";
-      case 'ready': return "primary";
+      case 'ready': return "default"; // Changed from "primary" to "default"
       case 'complete': return "success";
       case 'cancelled': return "destructive";
       default: return "secondary";
     }
   };
 
-  const getOrderStatusText = (order: Order) => {
+const getOrderStatusText = (order: Order) => {
     if (order.initiator_type === 'pharmacy') {
-      if (order.acceptance_status === 'pending') return 'Waiting for Patient';
-      if (order.acceptance_status === 'rejected') return 'Rejected';
+      // For pharmacy-initiated orders, check if status is still 'placed' (pending acceptance)
+      if (order.status === 'placed') return 'Waiting for Patient';
+      if (order.status === 'cancelled') return 'Rejected';
     }
     return order.status.toUpperCase();
   };
@@ -61,9 +62,8 @@ export function OrderCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <Card
+<Card
         id={`order-${order.id}`}
-        variant={isExpanded ? "interactive" : "default"}
         className={`border-l-4 ${order.status === 'complete' ? 'border-l-emerald-500' :
             order.status === 'ready' ? 'border-l-[var(--primary)]' :
               'border-l-amber-500'
@@ -76,7 +76,7 @@ export function OrderCard({
                 <span className="text-[10px] font-black font-mono bg-[var(--border-light)] text-[var(--text-muted)] px-2 py-0.5 rounded-md tracking-wider">
                   #{order.id.slice(0, 8)}
                 </span>
-                <Badge variant={getBadgeVariant(order.status, order.acceptance_status, order.initiator_type)} className="font-black text-[10px] px-2 py-0.5 uppercase tracking-widest">
+                <Badge variant={getBadgeVariant(order.status, order.initiator_type)} className="font-black text-[10px] px-2 py-0.5 uppercase tracking-widest">
                   {order.status === 'placed' && <Clock className="w-3 h-3 mr-1" />}
                   {order.status === 'ready' && <Package className="w-3 h-3 mr-1" />}
                   {order.status === 'complete' && <CheckCircle2 className="w-3 h-3 mr-1" />}
@@ -164,7 +164,7 @@ export function OrderCard({
               {isExpanded ? <X className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
             </Button>
 
-            {order.initiator_type === 'pharmacy' && order.acceptance_status === 'pending' && (
+            {order.initiator_type === 'pharmacy' && order.status === 'placed' && (
               <div className="flex-1 flex items-center justify-center bg-amber-50 text-amber-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-amber-200">
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Waiting for Customer
@@ -176,7 +176,7 @@ export function OrderCard({
                 <Button
                   className="flex-1 h-10 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md hover:shadow-lg glow-primary"
                   onClick={() => onUpdateStatus(order.id, 'ready')}
-                  variant="gradient"
+                  variant="default"
                 >
                   <Package className="w-4 h-4 mr-2" /> Mark Ready
                 </Button>

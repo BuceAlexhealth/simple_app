@@ -75,24 +75,7 @@ export class OrdersRepository extends BaseRepository {
     return 'orders';
   }
 
-  /**
-   * Get expired pharmacy-initiated orders
-   */
-  async getExpiredPharmacyOrders() {
-    try {
-      const { data, error } = await this.supabase
-        .from("orders")
-        .select("id, patient_id, pharmacy_id")
-        .eq("initiator_type", "pharmacy")
-        .eq("acceptance_status", "pending")
-        .lt("acceptance_deadline", new Date().toISOString());
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      this.handleError(error, 'getExpiredPharmacyOrders');
-    }
-  }
+  
 
   /**
    * Update order status
