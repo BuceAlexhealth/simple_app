@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { toast } from "sonner";
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
+import { useUser } from "@/contexts/UserContext";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,6 +37,7 @@ const MedicationCard = dynamic(
 );
 
 export default function PatientSearchPage() {
+    const { user, loading: userLoading } = useUser();
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [connectedPharmacies, setConnectedPharmacies] = useState<any[]>([]);
     const [search, setSearch] = useState("");
@@ -61,11 +63,8 @@ export default function PatientSearchPage() {
         debouncedSearchHandler(search);
     }, [search]);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+const fetchData = useCallback(async () => {
         if (!user) {
-            setLoading(false);
             return;
         }
 
@@ -106,9 +105,11 @@ export default function PatientSearchPage() {
         setLoading(false);
     }, []);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+useEffect(() => {
+        if (!userLoading && user) {
+            fetchData();
+        }
+    }, [fetchData, userLoading, user]);
 
     // Memoized filtered items to prevent unnecessary re-renders
     const filteredItems = useMemo(() => {
@@ -188,7 +189,7 @@ export default function PatientSearchPage() {
         cart.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2), [cart]
     );
 
-    if (loading) return (
+    if (loading || userLoading) return (
         <div className="container mx-auto p-4 md:p-6 pb-24 space-y-8">
             {/* Skeleton Header */}
             <header className="flex items-center justify-between">

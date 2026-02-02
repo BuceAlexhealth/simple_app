@@ -42,20 +42,36 @@ export function UserProvider({ children }: UserProviderProps) {
   const router = useRouter();
 
   async function fetchProfile(userId: string): Promise<Profile | null> {
+    console.log('Fetching profile for user:', userId);
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, full_name') // Removed 'email' as it doesn't exist in the profiles table
+        .select('id, role, full_name')
         .eq('id', userId)
         .single();
 
+      console.log('Profile query result:', { data, error });
+
       if (error) {
-        console.error('Profile fetch error:', error);
+        console.error('Profile fetch error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return null;
       }
+      
+      if (!data) {
+        console.warn('No profile found for user:', userId);
+        return null;
+      }
+      
+      console.log('Profile fetched successfully:', data);
       return data;
     } catch (err) {
-      console.error('Profile fetch error catch:', err);
+      console.error('Profile fetch unexpected error:', err);
       return null;
     }
   }
@@ -164,23 +180,35 @@ export function UserProvider({ children }: UserProviderProps) {
   useEffect(() => {
     let mounted = true;
 
-    // Check initial session first
+// Check initial session first
     const checkInitialSession = async () => {
       try {
+        console.log('Checking initial session...');
         const { data: { session } } = await supabase.auth.getSession();
         
+        console.log('Session found:', { session: !!session, user: !!session?.user });
+        
         if (session?.user && mounted) {
+          console.log('Setting user in context:', session.user.id);
           setUser(session.user);
           const profileData = await fetchProfile(session.user.id);
           
+          console.log('Profile data received:', profileData);
+          
           if (mounted) {
             setProfile(profileData);
-            // Only redirect if we're on the landing page
+            // Only redirect if we're on landing page AND have a profile
             if (window.location.pathname === '/' && profileData) {
+              console.log('Redirecting to dashboard based on role:', profileData.role);
               router.replace(profileData.role === "pharmacist" ? "/pharmacy" : "/patient");
+            } else if (window.location.pathname === '/' && !profileData) {
+              // User exists but no profile - this might be a data issue
+              console.warn('User exists but no profile found');
+              toast.error("Profile not found. Please contact support.");
             }
           }
         } else if (mounted) {
+          console.log('No session found, setting user to null');
           setUser(null);
           setProfile(null);
         }

@@ -6,6 +6,7 @@ import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X
 import Link from "next/link";
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
+import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -30,6 +31,7 @@ interface Order {
 }
 
 export default function PatientOrdersPage() {
+    const { user, loading: userLoading } = useUser();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -149,7 +151,7 @@ export default function PatientOrdersPage() {
                 </Link>
             </div>
 
-            {loading ? (
+            {loading || userLoading ? (
                 <div className="loading-container">
                     <Loader className="loading-spinner" />
                 </div>

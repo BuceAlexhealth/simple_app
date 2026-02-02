@@ -7,15 +7,17 @@ import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { useUser } from "@/contexts/UserContext";
 
 export default function PharmaciesPage() {
+    const { user, loading: userLoading } = useUser();
     const [pharmacies, setPharmacies] = useState<any[]>([]);
     const [connections, setConnections] = useState<string[]>([]);
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [dataLoading, setDataLoading] = useState(true);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+const fetchData = useCallback(async () => {
+        setDataLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
 
         const { profiles: profRepo, connections: connRepo } = createRepositories(supabase);
@@ -40,7 +42,7 @@ export default function PharmaciesPage() {
                 setConnections(connData.map((c: any) => c.pharmacy_id));
             }
         }
-        setLoading(false);
+        setDataLoading(false);
     }, []);
 
     useEffect(() => {
@@ -101,7 +103,7 @@ export default function PharmaciesPage() {
                 />
             </div>
 
-            {loading ? (
+            {dataLoading || userLoading ? (
                 <div className="loading-container">
                     <Loader className="loading-spinner" />
                 </div>
