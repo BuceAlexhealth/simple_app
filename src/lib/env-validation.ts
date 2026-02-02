@@ -7,7 +7,7 @@ const envSchema = z.object({
   // Supabase Configuration
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("Invalid Supabase URL"),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "Supabase anon key is required"),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "Supabase service role is required"),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "Supabase service role is required").optional(),
 
   // Optional Environment Variables
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -73,7 +73,11 @@ export function getEnvVar<T extends keyof typeof env>(key: T): typeof env[T] {
  * Check if required environment variables are set
  */
 export function validateRequiredEnvVars(): { valid: boolean; missing: string[] } {
-  const required = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+  const isBrowser = typeof window !== 'undefined';
+  const required = isBrowser
+    ? ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+    : ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+
   const missing = required.filter(key => {
     const val = process.env[key];
     return !val || val.trim() === "";
