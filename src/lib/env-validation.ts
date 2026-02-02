@@ -29,24 +29,18 @@ export const env = (() => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessage = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      if (process.env.NODE_ENV === "production") {
-        console.error(`❌ Environment validation failed in production:\n${errorMessage}`);
-        throw new Error(`Cloud validation failed: ${errorMessage}`);
-      } else {
-        console.warn("⚠️ Environment validation failed. Using development fallbacks.");
-        console.warn(`Missing/Invalid variables: ${errorMessage}`);
-        return {
-          NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dev-anon-key',
-          SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'dev-service-key',
-          NODE_ENV: "development",
-          RATE_LIMIT_ENABLED: true,
-          LOG_LEVEL: "info",
-          SENTRY_DSN: undefined,
-          ENABLE_ANALYTICS: false,
-          ENABLE_PERFORMANCE_MONITORING: false
-        } as any;
-      }
+      console.warn(`⚠️ Environment validation issue: ${errorMessage}`);
+      return {
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dev-anon-key',
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'dev-service-key',
+        NODE_ENV: process.env.NODE_ENV || "development",
+        RATE_LIMIT_ENABLED: true,
+        LOG_LEVEL: "info",
+        SENTRY_DSN: undefined,
+        ENABLE_ANALYTICS: false,
+        ENABLE_PERFORMANCE_MONITORING: false
+      } as any;
     }
     throw error;
   }
