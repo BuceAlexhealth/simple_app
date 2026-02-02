@@ -6,6 +6,9 @@ import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X
 import Link from "next/link";
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Card, CardContent } from "@/components/ui/Card";
 
 interface OrderItem {
     id: string;
@@ -133,14 +136,16 @@ export default function PatientOrdersPage() {
     }, []);
 
     return (
-        <div className="space-y-8">
-            <div className="section-header">
+        <div className="space-y-8 slide-up">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
                 <div>
-                    <h2 className="section-title">Purchase History</h2>
-                    <p className="section-subtitle">Track and manage your medical orders.</p>
+                    <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tight">Purchase <span className="text-[var(--primary)]">History</span></h2>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">Track and manage your medical orders.</p>
                 </div>
-                <Link href="/patient" className="btn-primary flex items-center gap-2 py-2 px-4 text-xs">
-                    <ShoppingBag className="w-4 h-4" /> New Order
+                <Link href="/patient">
+                    <Button variant="gradient" className="rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary">
+                        <ShoppingBag className="w-4 h-4 mr-2" /> New Order
+                    </Button>
                 </Link>
             </div>
 

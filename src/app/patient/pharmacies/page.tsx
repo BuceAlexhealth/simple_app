@@ -6,6 +6,7 @@ import { Search, Plus, UserPlus, CheckCircle2, Store, ArrowRight, Loader } from 
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/Button";
 
 export default function PharmaciesPage() {
     const [pharmacies, setPharmacies] = useState<any[]>([]);
@@ -81,10 +82,12 @@ export default function PharmaciesPage() {
     );
 
     return (
-        <div className="space-y-8">
-            <div className="section-header">
-                <h2 className="section-title">Connected Pharmacies</h2>
-                <p className="section-subtitle">Manage which pharmacies you can order from.</p>
+        <div className="space-y-8 slide-up">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
+                <div>
+                    <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tight">Connected <span className="text-[var(--primary)]">Pharmacies</span></h2>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">Manage which pharmacies you can order from.</p>
+                </div>
             </div>
 
             <div className="relative">

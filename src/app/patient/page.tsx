@@ -13,7 +13,7 @@ import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { debounce, storage } from "@/lib/utils-performance";
 import dynamic from 'next/dynamic';
@@ -27,13 +27,6 @@ const VirtualizedMedicationList = dynamic(
     }
 );
 
-const OrderConfirmationModal = dynamic(
-    () => import("@/components/patient/OrderConfirmationModal").then(mod => ({ default: mod.OrderConfirmationModal })),
-    {
-        loading: () => null,
-        ssr: false
-    }
-);
 
 const MedicationCard = dynamic(
     () => import("@/components/patient/MedicationCard").then(mod => ({ default: mod.MedicationCard })),
@@ -48,8 +41,6 @@ export default function PatientSearchPage() {
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [cart, setCart] = useState<CartItem[]>([]);
-    const [isOrdering, setIsOrdering] = useState(false);
-    const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -86,7 +77,7 @@ export default function PatientSearchPage() {
             "Failed to load connected pharmacies"
         );
 
-        if (connections) {
+        if (connections && Array.isArray(connections)) {
             const pharmacies = connections.map((c: any) => {
                 const profile = c.profiles;
                 return Array.isArray(profile) ? profile[0] : profile;
@@ -186,65 +177,11 @@ export default function PatientSearchPage() {
         );
     };
 
-    const placeOrder = async () => {
+    const placeOrder = () => {
         if (cart.length === 0) return;
-        setShowOrderConfirmation(true);
+        router.push("/patient/cart");
     };
 
-    const confirmOrder = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            toast.error("Please sign in to place an order");
-            router.push("/");
-            return;
-        }
-
-        setIsOrdering(true);
-        const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const pharmacyId = cart[0].pharmacy_id;
-
-        const { orders: ordersRepo } = createRepositories(supabase);
-
-        const order = await handleAsyncError(
-            () => ordersRepo.createOrder({
-                patient_id: user.id,
-                pharmacy_id: pharmacyId,
-                total_price: total,
-                status: 'placed'
-            }),
-            "Failed to place order"
-        );
-
-        if (order) {
-            const orderItemsInsert = cart.map(item => ({
-                order_id: order.id,
-                inventory_id: item.id,
-                quantity: item.quantity,
-                price_at_time: item.price
-            }));
-
-            const { error: itemsError } = await supabase
-                .from("order_items")
-                .insert(orderItemsInsert);
-
-            if (itemsError) {
-                handleAsyncError(() => Promise.reject(itemsError), "Failed to save order items");
-            } else {
-                // Send order notification to pharmacy
-                await sendOrderNotificationToPharmacy(order, user.id, pharmacyId);
-
-                setCart([]);
-                toast.success("Order placed successfully!");
-                router.push("/patient/orders");
-            }
-        }
-        setIsOrdering(false);
-        setShowOrderConfirmation(false);
-    };
-
-    const cancelOrder = () => {
-        setShowOrderConfirmation(false);
-    };
 
     // Memoized cart total to prevent unnecessary recalculations
     const cartTotal = useMemo(() =>
@@ -280,155 +217,183 @@ export default function PatientSearchPage() {
     );
 
     return (
-        <div className="container mx-auto p-4 md:p-6 pb-24 space-y-8">
-
-            {/* Header with Search and Cart */}
-            <header className="flex items-center justify-between">
-                <div className="section-header">
-                    <h1 className="section-title">Patient Portal</h1>
-                    <p className="section-subtitle">Welcome back</p>
-                </div>
-                <div className="relative">
-                    <Button variant="outline" size="icon" className="relative rounded-xl border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all">
-                        <ShoppingCart className="h-5 w-5 text-slate-600" />
-                        {cart.length > 0 && (
-                            <Badge className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 p-0 text-[10px] text-white ring-2 ring-white">
-                                {cart.reduce((a, b) => a + b.quantity, 0)}
-                            </Badge>
-                        )}
-                    </Button>
-                </div>
-            </header>
-
-            {/* Quick Chat Widget - Priority #1 */}
-            {connectedPharmacies.length > 0 && (
-                <section>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <MessageCircle className="w-5 h-5 text-indigo-500" />
-                            Recent Conversations
+        <div className="min-h-screen bg-[var(--app-bg)] pb-24">
+            <div className="container mx-auto p-4 md:p-6 space-y-8">
+                {/* Header Section */}
+                <header className="flex items-center justify-between glass-card p-6 rounded-2xl slide-up">
+                    <div className="space-y-1">
+                        <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tight">
+                            Available <span className="text-[var(--primary)]">Medications</span>
                         </h2>
-                        <Link href="/patient/chats" className="text-xs font-bold text-indigo-600 hover:underline">
-                            View All
-                        </Link>
+                        <p className="text-sm font-medium text-[var(--text-muted)]">
+                            From your connected pharmacies
+                        </p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {connectedPharmacies.slice(0, 3).map((pharma) => (
-                            <Link key={pharma.id} href={`/patient/chats?pharmacyId=${pharma.id}`}>
-                                <Card className="hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group">
-                                    <CardContent className="p-4 flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-indigo-100 shadow-lg group-hover:scale-105 transition-transform">
-                                            {pharma.full_name?.[0] || <Store className="w-5 h-5" />}
+                </header>
+
+                {/* Quick Chat Widget */}
+                {connectedPharmacies.length > 0 && (
+                    <section className="space-y-4 fade-in">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+                                <MessageCircle className="w-5 h-5 text-[var(--primary)]" />
+                                Your Pharmacists
+                            </h2>
+                            <Link href="/patient/chats" className="text-xs font-black uppercase tracking-widest text-[var(--primary)] hover:opacity-70 transition-opacity">
+                                View All
+                            </Link>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {connectedPharmacies.slice(0, 3).map((pharma) => (
+                                <Link key={pharma.id} href={`/patient/chats?pharmacyId=${pharma.id}`}>
+                                    <div className="glass-card p-4 rounded-xl flex items-center gap-4 group cursor-pointer hover:border-[var(--primary)] transition-all duration-300">
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-110 transition-transform">
+                                            {pharma.full_name?.[0] || "P"}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-slate-800 truncate">{pharma.full_name || "Pharmacy"}</h3>
-                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                                <p className="text-xs text-slate-500 font-medium">Available Now</p>
+                                            <h3 className="font-bold text-[var(--text-main)] truncate">{pharma.full_name || "Pharmacy"}</h3>
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <div className="w-2 h-2 rounded-full bg-emerald-500 success-pulse"></div>
+                                                <span className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-wider">Available</span>
                                             </div>
                                         </div>
-                                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                            <ArrowRight className="w-4 h-4" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Medication Search */}
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-slate-800">Find Medication</h2>
-                </div>
-
-                <div className="relative mb-6 group">
-                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                    <Input
-                        placeholder="Search for medication (e.g. Aspirin)..."
-                        className="pl-12 h-12 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all text-lg"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        inputMode="text"
-                        autoComplete="off"
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        spellCheck="false"
-                    />
-                </div>
-
-                {items.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200">
-                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Store className="h-8 w-8 text-slate-300" />
+                                        <ArrowRight className="w-5 h-5 text-[var(--text-light)] group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all" />
+                                    </div>
+                                </Link>
+                            ))}
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-1">No Connected Pharmacies</h3>
-                        <p className="text-slate-500 max-w-xs mx-auto text-sm mb-6">
-                            Connect with a pharmacy to browse their inventory and start ordering.
-                        </p>
-                        <Link href="/patient/pharmacies">
-                            <Button>Find a Pharmacy</Button>
-                        </Link>
-                    </div>
-                ) : (
-                    <VirtualizedMedicationList
-                        items={filteredItems}
-                        cart={cart}
-                        onAddToCart={addToCart}
-                        onUpdateQuantity={updateQuantity}
-                        maxVisible={6}
-                    />
+                    </section>
                 )}
-            </section>
 
-            {/* Cart Overlay */}
-            {cart.length > 0 && (
-                <motion.div
-                    initial={{ y: 100 }}
-                    animate={{ y: 0 }}
-                    className="fixed bottom-0 left-0 right-0 border-t bg-white/80 backdrop-blur-lg p-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] md:p-6 z-50"
-                >
-                    <div className="container mx-auto max-w-4xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total</p>
-                                <p className="text-2xl font-black text-slate-900">
-                                    ₹{cartTotal}
+                {/* Medication Search Section */}
+                <section className="space-y-6 fade-in">
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-[var(--text-main)]">Find Medications</h2>
+                        <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-light)] group-focus-within:text-[var(--primary)] transition-colors" />
+                            <Input
+                                placeholder="Search products, medications..."
+                                className="pl-12 h-14 rounded-2xl border-[var(--border)] focus:ring-4 focus:ring-[var(--primary-glow)] transition-all text-base"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {items.length === 0 && !loading ? (
+                        <div className="glass-card p-12 rounded-3xl flex flex-col items-center text-center space-y-4">
+                            <div className="w-20 h-20 rounded-full bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)]">
+                                <Store className="w-10 h-10" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-bold text-[var(--text-main)]">No connected pharmacies</h3>
+                                <p className="text-[var(--text-muted)] max-w-sm">
+                                    Connect with your local pharmacist to see medications available for purchase.
                                 </p>
                             </div>
-                            <div className="flex gap-3">
-                                <Button variant="ghost" className="text-slate-500 hover:text-rose-500" onClick={() => setCart([])}>Clear</Button>
-                                <Button onClick={placeOrder} isLoading={isOrdering} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 rounded-xl shadow-lg shadow-indigo-200">
-                                    Place Order
-                                </Button>
-                            </div>
+                            <Link href="/patient/pharmacies">
+                                <Button variant="gradient" className="px-8 h-12 rounded-xl">Browse Pharmacies</Button>
+                            </Link>
                         </div>
-                    </div>
-                </motion.div>
-            )}
+                    ) : (
+                        <VirtualizedMedicationList
+                            items={filteredItems}
+                            cart={cart}
+                            onAddToCart={addToCart}
+                            onUpdateQuantity={updateQuantity}
+                            maxVisible={6}
+                        />
+                    )}
+                </section>
+            </div>
 
-            {/* Floating Action Button for Chat (Mobile) */}
-            <Link href="/patient/chats">
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="fixed bottom-6 right-6 md:hidden w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-300 flex items-center justify-center z-40"
-                >
-                    <MessageCircle className="w-6 h-6" />
-                </motion.button>
-            </Link>
+            {/* Sticky Cart Overlay */}
+            <AnimatePresence>
+                {cart.length > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-0 left-0 right-0 p-4 md:p-8 z-50 pointer-events-none"
+                    >
+                        <div className="container mx-auto max-w-5xl pointer-events-auto">
+                            <motion.div
+                                whileHover={{ y: -5 }}
+                                className="glass-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-3xl p-5 md:p-7 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border-[var(--primary)] border-opacity-30 flex flex-col md:flex-row items-center justify-between gap-6"
+                            >
+                                <div className="flex items-center gap-8">
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse"></div>
+                                            <span className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-[0.2em]">Active Cart</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-sm font-bold text-[var(--text-muted)]">₹</span>
+                                            <span className="text-3xl font-black text-[var(--text-main)] tracking-tighter">{cartTotal}</span>
+                                        </div>
+                                    </div>
 
-            {/* Order Confirmation Modal */}
-            <OrderConfirmationModal
-                isOpen={showOrderConfirmation}
-                cart={cart}
-                total={parseFloat(cartTotal)}
-                onConfirm={confirmOrder}
-                onCancel={cancelOrder}
-                isOrdering={isOrdering}
-            />
+                                    <div className="hidden sm:flex items-center gap-3 bg-slate-100/50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+                                        <div className="flex -space-x-3 px-1">
+                                            {cart.slice(0, 4).map((item, i) => (
+                                                <motion.div
+                                                    key={item.id}
+                                                    initial={{ scale: 0.8, x: -10 }}
+                                                    animate={{ scale: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className="w-10 h-10 rounded-xl bg-gradient-primary border-2 border-white dark:border-slate-900 flex items-center justify-center text-white font-black text-xs shadow-lg"
+                                                >
+                                                    {item.name[0]}
+                                                </motion.div>
+                                            ))}
+                                            {cart.length > 4 && (
+                                                <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-900 flex items-center justify-center text-slate-600 dark:text-slate-300 font-black text-[10px] shadow-lg">
+                                                    +{cart.length - 4}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="pr-3 border-l border-slate-300/30 dark:border-slate-600/30 pl-3">
+                                            <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest">{cart.length} ITEMS</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 w-full md:w-auto">
+                                    <Button
+                                        variant="ghost"
+                                        className="h-14 px-6 rounded-2xl font-bold uppercase tracking-widest text-[10px] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 active:scale-95 transition-all"
+                                        onClick={() => {
+                                            if (confirm("Are you sure you want to clear your cart?")) {
+                                                setCart([]);
+                                            }
+                                        }}
+                                    >
+                                        Clear Cart
+                                    </Button>
+                                    <Button
+                                        onClick={placeOrder}
+                                        variant="gradient"
+                                        className="flex-1 md:flex-none h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl glow-primary hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                                    >
+                                        Review & Checkout
+                                        <ArrowRight className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Mobile Floating Chat */}
+            <div className="fixed bottom-6 right-6 md:hidden z-40">
+                <Link href="/patient/chats">
+                    <button className="w-14 h-14 bg-gradient-primary rounded-2xl shadow-xl flex items-center justify-center text-white scale-110 active:scale-95 transition-all glow-primary">
+                        <MessageCircle className="w-7 h-7" />
+                    </button>
+                </Link>
+            </div>
+
         </div>
     );
 }

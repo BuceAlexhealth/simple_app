@@ -7,6 +7,8 @@ export interface InventoryItem {
     name: string;
     price: number;
     stock: number;
+    brand_name?: string;
+    form?: string;
     pharmacy_id: string;
     created_at?: string;
     profiles?: {

@@ -1,10 +1,10 @@
 "use client";
 
 import { ReactNode } from "react";
-import { ArrowLeft, Store, ClipboardList, Package, LogOut, MessageCircle } from "lucide-react";
-import Link from "next/link";
+import { Store, ClipboardList, Package, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { Sidebar } from "@/components/ui/Sidebar";
 
 export default function PharmacyLayout({ children }: { children: ReactNode }) {
     const router = useRouter();
@@ -14,47 +14,30 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
         router.push("/");
     };
 
+    const navItems = [
+        { label: "Orders", href: "/pharmacy", icon: ClipboardList },
+        { label: "Inventory", href: "/pharmacy/inventory", icon: Package },
+        { label: "Chats", href: "/pharmacy/chats", icon: MessageCircle },
+    ];
+
     return (
         <div className="bg-[var(--app-bg)] min-h-screen">
-            <header className="app-header">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="hover:bg-white/10 p-2 rounded-full transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <Store className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-sm font-bold">Pharmacy Manager</h1>
-                            <p className="text-[10px] text-white/70">Admin Dashboard</p>
-                        </div>
+            <Sidebar
+                title="Pharmacy Manager"
+                subtitle="Admin Dashboard"
+                logo={
+                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-lg flex items-center justify-center shadow-md">
+                        <Store className="w-5 h-5 text-white" />
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={handleSignOut} className="p-2 hover:bg-red-500/20 rounded-full transition-colors text-white/80 hover:text-white">
-                        <LogOut className="w-5 h-5" />
-                    </button>
-                </div>
-            </header>
+                }
+                items={navItems}
+                onSignOut={handleSignOut}
+            />
 
-            <nav className="flex bg-white border-b border-[var(--border)] sticky top-[var(--header-height)] z-40">
-                <Link href="/pharmacy" className="flex-1 py-4 text-center border-b-2 border-transparent hover:text-[var(--primary)] hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500">
-                    <ClipboardList className="w-4 h-4" />
-                    <span>Orders</span>
-                </Link>
-                <Link href="/pharmacy/inventory" className="flex-1 py-4 text-center border-b-2 border-transparent hover:text-[var(--primary)] hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500">
-                    <Package className="w-4 h-4" />
-                    <span>Inventory</span>
-                </Link>
-                <Link href="/pharmacy/chats" className="flex-1 py-4 text-center border-b-2 border-transparent hover:text-[var(--primary)] hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Chats</span>
-                </Link>
-            </nav>
-
-            <main className="max-w-[1600px] mx-auto p-4 md:p-6 pb-24">
-                {children}
+            <main className="md:ml-72 transition-all pt-[var(--header-height)] md:pt-0 min-h-screen">
+                <div className="p-4 md:p-8 lg:p-12 max-w-[1600px] mx-auto">
+                    {children}
+                </div>
             </main>
         </div>
     );

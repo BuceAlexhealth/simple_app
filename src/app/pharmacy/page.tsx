@@ -13,29 +13,51 @@ export default function PharmacyOrdersPage() {
     const [orderFilter, setOrderFilter] = useState<'all' | 'patient' | 'pharmacy'>('all');
 
     return (
-        <div className="space-y-8 p-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">Active Orders</h2>
-                    <p className="text-slate-500">Track and fulfill prescriptions from your patients.</p>
+        <div className="space-y-10 pb-20 fade-in">
+            {/* Page Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-1">
+                    <h2 className="text-4xl font-black text-[var(--text-main)] tracking-tight">
+                        Store <span className="text-[var(--primary)]">Operations</span>
+                    </h2>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">
+                        Manage your active orders and fulfillment workflow.
+                    </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <OrderFilters 
-                        activeFilter={orderFilter} 
-                        onFilterChange={setOrderFilter} 
-                    />
-                    <Link href="/pharmacy/create-order">
-                        <Button>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="glass-card p-1.5 rounded-2xl flex items-center gap-2 border-[var(--border)]">
+                        <OrderFilters
+                            activeFilter={orderFilter}
+                            onFilterChange={setOrderFilter}
+                        />
+                    </div>
+                    <Link href="/pharmacy/create-order" className="w-full sm:w-auto">
+                        <Button variant="gradient" className="w-full sm:w-auto h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary scale-in">
                             <Plus className="w-4 h-4 mr-2" />
-                            Create Order
+                            New Order
                         </Button>
                     </Link>
                 </div>
             </div>
 
-            <InviteShareCard />
-            <OrderList filter={orderFilter} />
-            <EODInventoryCheck />
+            {/* Quick Actions / Stats Area */}
+            <div className="grid grid-cols-1 gap-8 slide-up">
+                <InviteShareCard />
+
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Active Queue</h3>
+                        <div className="h-0.5 flex-1 mx-6 bg-[var(--border-light)] hidden md:block"></div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Real-time Updates</span>
+                    </div>
+                    <OrderList filter={orderFilter} />
+                </div>
+
+                <div className="pt-8 border-t border-[var(--border)] border-dashed">
+                    <EODInventoryCheck />
+                </div>
+            </div>
         </div>
     );
 }

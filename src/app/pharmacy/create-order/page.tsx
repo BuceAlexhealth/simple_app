@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Search, Package, User, CheckCircle2, AlertCircle, Loader } from "lucide-react";
+import { Plus, Search, Package, User, CheckCircle2, AlertCircle, Loader, X, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { InventoryItem } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
 import { getErrorMessage, handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ConnectedPatient {
     id: string;
@@ -184,182 +185,272 @@ export default function CreateOrderPage() {
     }
 
     return (
-        <div className="space-y-8 p-6 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">Create Order</h2>
-                    <p className="text-slate-500">Place an order on behalf of a connected patient.</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[var(--app-bg)] p-4 md:p-8 pb-32">
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-7xl mx-auto space-y-10"
+            >
+                {/* Page Header */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-[var(--primary-light)] rounded-full w-fit">
+                            <Plus className="w-3 h-3 text-[var(--primary)]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)]">Order Operations</span>
+                        </div>
+                        <h2 className="text-4xl font-black text-[var(--text-main)] tracking-tight">
+                            Create <span className="text-[var(--primary)]">Order</span>
+                        </h2>
+                        <p className="text-sm font-medium text-[var(--text-muted)]">
+                            Place a new fulfillment request on behalf of a connected customer.
+                        </p>
+                    </div>
 
-            {/* Patient Selection */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <User className="w-5 h-5" />
-                        Select Patient
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {patients.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
-                            <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                            <p>No connected patients found</p>
-                            <p className="text-sm">Share your invite link to connect with patients</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {patients.map(patient => (
-                                <button
-                                    key={patient.id}
-                                    onClick={() => setSelectedPatient(patient)}
-                                    className={`p-4 rounded-lg border-2 text-left transition-all ${selectedPatient?.id === patient.id
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-slate-200 hover:border-slate-300'
-                                        }`}
-                                >
-                                    <div className="font-semibold text-slate-900">{patient.full_name}</div>
-                                </button>
-                            ))}
-                        </div>
+                    {selectedPatient && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-white/50 backdrop-blur-sm border border-[var(--border)] p-4 rounded-2xl flex items-center gap-4 shadow-sm"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-white font-black shadow-lg">
+                                {selectedPatient.full_name[0]}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Active Patient</p>
+                                <p className="text-sm font-bold text-[var(--text-main)]">{selectedPatient.full_name}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedPatient(null); setCart([]); }} className="h-8 w-8 rounded-full">
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </motion.div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
 
-            {/* Order Content */}
-            {selectedPatient && (
-                <>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Inventory Selection */}
-                        <div className="lg:col-span-2">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Package className="w-5 h-5" />
-                                        Add Items
-                                    </CardTitle>
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                                        <Input
-                                            placeholder="Search inventory..."
-                                            value={searchQuery}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                                            className="pl-10"
-                                        />
+                <AnimatePresence mode="wait">
+                    {!selectedPatient ? (
+                        <motion.div
+                            key="patient-selection"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                        >
+                            <Card className="overflow-hidden border-2 border-[var(--border)] bg-white/50 backdrop-blur-xl">
+                                <CardHeader className="border-b border-[var(--border)] border-dashed bg-white/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)]">
+                                            <User className="w-5 h-5" />
+                                        </div>
+                                        <CardTitle className="text-xl font-black italic">Select Customer</CardTitle>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
-                                    {filteredInventory.length === 0 ? (
-                                        <div className="text-center py-8 text-slate-500">
-                                            <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                            <p>No items found</p>
+                                <CardContent className="p-8">
+                                    {patients.length === 0 ? (
+                                        <div className="text-center py-12 space-y-4">
+                                            <div className="w-20 h-20 rounded-full bg-[var(--surface-bg)] flex items-center justify-center mx-auto text-[var(--text-muted)] opacity-20">
+                                                <AlertCircle className="w-10 h-10" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-[var(--text-main)]">No Connections Found</h3>
+                                                <p className="text-sm text-[var(--text-muted)] max-w-xs mx-auto">
+                                                    Share your store link with patients to start taking orders.
+                                                </p>
+                                            </div>
+                                            <Button variant="outline" onClick={() => router.push('/pharmacy')} className="rounded-xl px-8">Return to Dashboard</Button>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2 max-h-96 overflow-y-auto">
-                                            {filteredInventory.map(item => (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50"
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {patients.map(patient => (
+                                                <motion.button
+                                                    key={patient.id}
+                                                    whileHover={{ scale: 1.02, translateY: -2 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                    onClick={() => setSelectedPatient(patient)}
+                                                    className="p-6 rounded-2xl border-2 border-[var(--border)] bg-white hover:border-[var(--primary)] hover:shadow-xl transition-all text-left flex items-center gap-4 group"
                                                 >
-                                                    <div className="flex-1">
-                                                        <div className="font-medium text-slate-900">{item.name}</div>
-                                                        <div className="text-sm text-slate-500">
-                                                            ₹{item.price.toFixed(2)} • Stock: {item.stock}
-                                                        </div>
+                                                    <div className="w-12 h-12 rounded-xl bg-[var(--surface-bg)] group-hover:bg-[var(--primary-light)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors font-black text-lg">
+                                                        {patient.full_name[0]}
                                                     </div>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => addToCart(item)}
-                                                        disabled={item.stock <= 0 || cart.some(cartItem => cartItem.id === item.id)}
-                                                    >
-                                                        <Plus className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
+                                                    <div>
+                                                        <h4 className="font-black text-[var(--text-main)] italic">{patient.full_name}</h4>
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Connected Patient</p>
+                                                    </div>
+                                                </motion.button>
                                             ))}
                                         </div>
                                     )}
                                 </CardContent>
                             </Card>
-
-                            {/* Pharmacy Notes */}
-                            <Card className="mt-6">
-                                <CardHeader>
-                                    <CardTitle>Additional Notes (Optional)</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <Textarea
-                                        placeholder="Add any notes for the patient..."
-                                        value={pharmacyNotes}
-                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPharmacyNotes(e.target.value)}
-                                        rows={3}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Cart Summary */}
-                        <div className="lg:col-span-1">
-                            <Card className="sticky top-6">
-                                <CardHeader>
-                                    <CardTitle>Order Summary</CardTitle>
-                                    <p className="text-sm text-slate-600">
-                                        For: <span className="font-semibold">{selectedPatient.full_name}</span>
-                                    </p>
-                                </CardHeader>
-                                <CardContent>
-                                    {cart.length === 0 ? (
-                                        <div className="text-center py-8 text-slate-500">
-                                            <Package className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                            <p>No items added</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
-                                                {cart.map(item => (
-                                                    <div key={item.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-slate-900 truncate">{item.name}</div>
-                                                            <div className="text-sm text-slate-600">₹{item.price.toFixed(2)}</div>
-                                                        </div>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => removeFromCart(item.id)}
-                                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                        >
-                                                            ×
-                                                        </Button>
-                                                    </div>
-                                                ))}
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="order-creation"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+                        >
+                            {/* Inventory Selection Section */}
+                            <div className="lg:col-span-8 space-y-6">
+                                <Card className="border-[var(--border)] bg-white/80 backdrop-blur-sm overflow-hidden flex flex-col h-[700px]">
+                                    <div className="p-6 border-b border-[var(--border)] border-dashed space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)]">
+                                                    <Package className="w-5 h-5" />
+                                                </div>
+                                                <CardTitle className="text-xl font-black italic">Select Products</CardTitle>
                                             </div>
-                                            <div className="border-t pt-4">
-                                                <div className="flex items-center justify-between font-bold text-lg">
-                                                    <span>Total</span>
-                                                    <span>₹{calculateTotal().toFixed(2)}</span>
+                                        </div>
+                                        <div className="relative group">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors w-5 h-5" />
+                                            <Input
+                                                placeholder="Search medicine stock..."
+                                                value={searchQuery}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                                                className="pl-12 h-12 rounded-xl bg-white border-[var(--border)] focus:ring-2 focus:ring-[var(--primary-glow)]"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                        {filteredInventory.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                                                <div className="w-16 h-16 rounded-3xl bg-[var(--surface-bg)] flex items-center justify-center text-[var(--text-muted)] opacity-20">
+                                                    <Search className="w-8 h-8" />
+                                                </div>
+                                                <p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)]">No match found</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {filteredInventory.map(item => {
+                                                    const inCart = cart.some(cartItem => cartItem.id === item.id);
+                                                    return (
+                                                        <motion.div
+                                                            key={item.id}
+                                                            layoutId={`item-${item.id}`}
+                                                            className={`p-4 rounded-2xl border-2 transition-all group flex items-start justify-between ${inCart ? 'bg-[var(--primary-light)] border-[var(--primary)]' : 'bg-white border-[var(--border)] hover:border-[var(--primary-light)]'}`}
+                                                        >
+                                                            <div className="space-y-1">
+                                                                <h4 className="font-black text-[var(--text-main)] italic truncate max-w-[150px]">{item.name}</h4>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-sm font-bold text-[var(--primary)]">₹{item.price.toFixed(2)}</p>
+                                                                    <div className="w-1 h-1 rounded-full bg-[var(--border)]"></div>
+                                                                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.stock} Units</p>
+                                                                </div>
+                                                            </div>
+                                                            <Button
+                                                                size="icon"
+                                                                variant={inCart ? "gradient" : "outline"}
+                                                                onClick={() => !inCart && addToCart(item)}
+                                                                className={`h-10 w-10 rounded-xl transition-all ${inCart ? 'shadow-lg' : ''}`}
+                                                                disabled={inCart}
+                                                            >
+                                                                {inCart ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                                            </Button>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
+
+                                <Card className="border-[var(--border)] border-dashed bg-white/50">
+                                    <div className="p-6 space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                                                <User className="w-5 h-5" />
+                                            </div>
+                                            <CardTitle className="text-xl font-black italic">Pharmacy Notes</CardTitle>
+                                        </div>
+                                        <Textarea
+                                            placeholder="Add instructions, dosage info, or a personal note for the patient..."
+                                            value={pharmacyNotes}
+                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPharmacyNotes(e.target.value)}
+                                            className="min-h-[120px] rounded-2xl border-[var(--border)] focus:ring-2 focus:ring-orange-100"
+                                        />
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {/* Order Summary Sidebar */}
+                            <div className="lg:col-span-4 mt-6 lg:mt-0">
+                                <Card className="border-2 border-[var(--text-main)] bg-[var(--text-main)] text-white shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-8">
+                                    <div className="p-8 space-y-8">
+                                        <div className="space-y-2">
+                                            <h3 className="text-3xl font-black italic tracking-tighter">Order Summary</h3>
+                                            <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full w-fit">
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-100">Pending Review</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                            {cart.length === 0 ? (
+                                                <div className="py-10 text-center space-y-4 opacity-40">
+                                                    <Package className="w-10 h-10 mx-auto" />
+                                                    <p className="text-xs font-black uppercase tracking-widest">Bag is Empty</p>
+                                                </div>
+                                            ) : (
+                                                <AnimatePresence>
+                                                    {cart.map(item => (
+                                                        <motion.div
+                                                            key={item.id}
+                                                            initial={{ opacity: 0, x: -20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.9 }}
+                                                            className="flex items-center justify-between group"
+                                                        >
+                                                            <div className="space-y-0.5">
+                                                                <p className="font-bold text-sm italic line-clamp-1">{item.name}</p>
+                                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">1 x ₹{item.price.toFixed(2)}</p>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => removeFromCart(item.id)}
+                                                                className="h-8 w-8 rounded-lg hover:bg-white/10 text-white/40 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </motion.div>
+                                                    ))}
+                                                </AnimatePresence>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-6 pt-6 border-t border-white/10 border-dashed">
+                                            <div className="flex items-end justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Total Amount</p>
+                                                    <p className="text-4xl font-black">₹{calculateTotal().toFixed(2)}</p>
                                                 </div>
                                             </div>
+
                                             <Button
-                                                className="w-full mt-6"
+                                                variant="gradient"
                                                 onClick={submitOrder}
-                                                disabled={isSubmitting}
+                                                disabled={isSubmitting || cart.length === 0}
+                                                className="w-full h-16 rounded-2xl text-sm font-black uppercase tracking-widest shadow-2xl glow-primary"
                                             >
                                                 {isSubmitting ? (
-                                                    <><Loader className="w-4 h-4 mr-2 animate-spin" /> Sending...</>
+                                                    <><Loader className="w-5 h-5 mr-3 animate-spin" /> Transmitting...</>
                                                 ) : (
-                                                    <><CheckCircle2 className="w-4 h-4 mr-2" /> Send for Patient Acceptance</>
+                                                    <><CheckCircle2 className="w-5 h-5 mr-3 text-white" /> Dispatch Order</>
                                                 )}
                                             </Button>
-                                            <p className="text-xs text-slate-500 text-center mt-3">
-                                                Order will expire in 24 hours if not accepted
-                                            </p>
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-                </>
-            )}
+
+                                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl text-[9px] font-bold text-white/60 leading-relaxed italic">
+                                                <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />
+                                                This order request will expire automatically if not accepted by the customer within 24 hours.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
         </div>
     );
 }

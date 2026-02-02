@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader, Clock } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { OrderCard } from "./OrderCard";
+import { motion, AnimatePresence } from "framer-motion";
 
 
 interface OrderListProps {
@@ -56,34 +57,57 @@ export function OrderList({ filter }: OrderListProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader className="w-8 h-8 animate-spin text-slate-400" />
+      <div className="grid grid-cols-1 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="card-premium h-48 animate-pulse flex flex-col p-6 space-y-4">
+            <div className="flex justify-between items-start">
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-[var(--border-light)] rounded"></div>
+                <div className="h-8 w-32 bg-[var(--border-light)] rounded"></div>
+              </div>
+              <div className="h-12 w-24 bg-[var(--border-light)] rounded-xl"></div>
+            </div>
+            <div className="mt-auto h-10 w-full bg-[var(--border-light)] rounded-xl"></div>
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      {filteredOrders.map((order) => {
-        const isExpanded = expandedOrderId === order.id;
-        const items = orderItems[order.id] || [];
+      <AnimatePresence mode="popLayout">
+        {filteredOrders.map((order) => {
+          const isExpanded = expandedOrderId === order.id;
+          const items = orderItems[order.id] || [];
 
-        return (
-          <OrderCard
-            key={order.id}
-            order={order}
-            items={items}
-            isExpanded={isExpanded}
-            onToggleExpand={() => toggleOrderExpansion(order.id)}
-            onUpdateStatus={updateStatus}
-          />
-        );
-      })}
+          return (
+            <OrderCard
+              key={order.id}
+              order={order}
+              items={items}
+              isExpanded={isExpanded}
+              onToggleExpand={() => toggleOrderExpansion(order.id)}
+              onUpdateStatus={updateStatus}
+            />
+          );
+        })}
+      </AnimatePresence>
+
       {filteredOrders.length === 0 && (
-        <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-          <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-500 font-medium">No orders at the moment.</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-20 glass-card rounded-3xl border border-dashed border-[var(--border)]"
+        >
+          <div className="w-20 h-20 rounded-full bg-[var(--surface-bg)] flex items-center justify-center text-[var(--text-light)] mx-auto mb-6">
+            <Clock className="w-10 h-10" />
+          </div>
+          <h3 className="text-xl font-black text-[var(--text-main)] mb-2">No active orders</h3>
+          <p className="text-[var(--text-muted)] font-medium max-w-xs mx-auto">
+            When customers place orders, they will appear here for you to process.
+          </p>
+        </motion.div>
       )}
     </div>
   );
