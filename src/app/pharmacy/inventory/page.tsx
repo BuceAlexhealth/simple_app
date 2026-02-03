@@ -2,16 +2,18 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import { Plus, Package, Edit2, Trash2, X, Info, Check, Loader, Search, Sparkles, Filter, MoreVertical, AlertTriangle } from "lucide-react";
+import { Plus, Package, X, Loader, Search, Sparkles, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/Select";
 import { motion, AnimatePresence } from "framer-motion";
+import { InventoryItemCard } from "./InventoryItemCard";
+import { InventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory";
+import { z } from "zod";
 
 interface InventoryItem {
     id: string;
@@ -27,8 +29,11 @@ export default function InventoryPage() {
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    const [newItem, setNewItem] = useState({ name: "", brand_name: "", form: "", price: "", stock: "" });
-    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+    const [newItem, setNewItem] = useState<InventoryItemInput>({ name: "", brand_name: "", form: "", price: 0, stock: 0 });
+    const [addItemErrors, setAddItemErrors] = useState<Partial<Record<keyof InventoryItemInput, string>>>({});
+
+    // Track which item is currently being edited by ID
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
 
     const fetchInventory = useCallback(async () => {
@@ -62,9 +67,22 @@ export default function InventoryPage() {
     }, [items, search]);
 
     async function handleAddItem() {
-        if (!newItem.name || !newItem.price || !newItem.stock) {
-            toast.error("Please fill in all fields");
-            return;
+        // Validate with Zod
+        try {
+            InventoryItemSchema.parse(newItem);
+            setAddItemErrors({});
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                const fieldErrors: any = {};
+                error.issues.forEach((err) => {
+                    if (err.path[0]) {
+                        fieldErrors[err.path[0]] = err.message;
+                    }
+                });
+                setAddItemErrors(fieldErrors);
+                toast.error("Please fix the validation errors");
+                return;
+            }
         }
 
         const { data: { user } } = await supabase.auth.getUser();
@@ -77,38 +95,36 @@ export default function InventoryPage() {
                 name: newItem.name,
                 brand_name: newItem.brand_name,
                 form: newItem.form,
-                price: parseFloat(newItem.price),
-                stock: parseInt(newItem.stock),
+                price: newItem.price,
+                stock: newItem.stock,
             }),
             "Error adding item"
         );
 
         if (success) {
             toast.success("Item added successfully");
-            setNewItem({ name: "", brand_name: "", form: "", price: "", stock: "" });
+            setNewItem({ name: "", brand_name: "", form: "", price: 0, stock: 0 });
             setIsAdding(false);
             fetchInventory();
         }
     }
 
-    async function handleUpdateItem() {
-        if (!editingItem) return;
-
+    async function handleUpdateItem(id: string, data: InventoryItemInput) {
         const { inventory } = createRepositories(supabase);
         const success = await handleAsyncError(
-            () => inventory.updateItem(editingItem.id, {
-                name: editingItem.name,
-                brand_name: editingItem.brand_name,
-                form: editingItem.form,
-                price: editingItem.price,
-                stock: editingItem.stock
+            () => inventory.updateItem(id, {
+                name: data.name,
+                brand_name: data.brand_name,
+                form: data.form,
+                price: data.price,
+                stock: data.stock
             }),
             "Error updating item"
         );
 
         if (success) {
             toast.success("Item updated successfully");
-            setEditingItem(null);
+            setEditingItemId(null);
             fetchInventory();
         }
     }
@@ -204,19 +220,21 @@ export default function InventoryPage() {
                                         <label className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest ml-1">Product Name</label>
                                         <Input
                                             placeholder="e.g. Paracetamol 500mg"
-                                            className="h-12 rounded-xl focus:ring-2 focus:ring-[var(--primary-glow)]"
+                                            className={`h-12 rounded-xl focus:ring-2 focus:ring-[var(--primary-glow)] ${addItemErrors.name ? 'border-red-500' : ''}`}
                                             value={newItem.name}
                                             onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                                         />
+                                        {addItemErrors.name && <p className="text-xs text-red-500 font-medium">{addItemErrors.name}</p>}
                                     </div>
                                     <div className="md:col-span-2 space-y-2">
                                         <label className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest ml-1">Brand Name</label>
                                         <Input
                                             placeholder="e.g. Crocin"
-                                            className="h-12 rounded-xl focus:ring-2 focus:ring-[var(--primary-glow)]"
-                                            value={newItem.brand_name}
+                                            className={`h-12 rounded-xl focus:ring-2 focus:ring-[var(--primary-glow)] ${addItemErrors.brand_name ? 'border-red-500' : ''}`}
+                                            value={newItem.brand_name || ""}
                                             onChange={(e) => setNewItem({ ...newItem, brand_name: e.target.value })}
                                         />
+                                        {addItemErrors.brand_name && <p className="text-xs text-red-500 font-medium">{addItemErrors.brand_name}</p>}
                                     </div>
                                     <div className="md:col-span-1 space-y-2">
                                         <label className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest ml-1">Form</label>
@@ -224,7 +242,7 @@ export default function InventoryPage() {
                                             value={newItem.form || ""}
                                             onChange={(value) => setNewItem({ ...newItem, form: value })}
                                         >
-                                            <SelectTrigger placeholder="Select Form" />
+                                            <SelectTrigger placeholder="Select Form" className={addItemErrors.form ? 'border-red-500' : ''} />
                                             <SelectContent>
                                                 <SelectItem value="Tablet">Tablet</SelectItem>
                                                 <SelectItem value="Capsule">Capsule</SelectItem>
@@ -239,26 +257,29 @@ export default function InventoryPage() {
                                                 <SelectItem value="Other">Other</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        {addItemErrors.form && <p className="text-xs text-red-500 font-medium">{addItemErrors.form}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest ml-1">Price (₹)</label>
                                         <Input
                                             type="number"
                                             placeholder="0.00"
-                                            className="h-12 rounded-xl"
-                                            value={newItem.price}
-                                            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                                            className={`h-12 rounded-xl ${addItemErrors.price ? 'border-red-500' : ''}`}
+                                            value={newItem.price || ''}
+                                            onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) || 0 })}
                                         />
+                                        {addItemErrors.price && <p className="text-xs text-red-500 font-medium">{addItemErrors.price}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest ml-1">Initial Stock</label>
                                         <Input
                                             type="number"
                                             placeholder="0"
-                                            className="h-12 rounded-xl"
-                                            value={newItem.stock}
-                                            onChange={(e) => setNewItem({ ...newItem, stock: e.target.value })}
+                                            className={`h-12 rounded-xl ${addItemErrors.stock ? 'border-red-500' : ''}`}
+                                            value={newItem.stock || ''}
+                                            onChange={(e) => setNewItem({ ...newItem, stock: parseInt(e.target.value) || 0 })}
                                         />
+                                        {addItemErrors.stock && <p className="text-xs text-red-500 font-medium">{addItemErrors.stock}</p>}
                                     </div>
                                 </div>
                                 <div className="flex flex-col sm:flex-row justify-end gap-3 mt-10">
@@ -294,150 +315,17 @@ export default function InventoryPage() {
                                 className="w-full"
                             >
                                 <Card
-                                    variant={editingItem?.id === item.id ? "interactive" : "default"}
-                                    className={`w-full group border-[var(--border)] transition-all duration-300 ${editingItem?.id === item.id ? 'ring-2 ring-[var(--primary)]' : 'hover:border-[var(--primary)] hover:shadow-lg'}`}
+                                    className={`w-full group border-[var(--border)] transition-all duration-300 ${editingItemId === item.id ? 'ring-2 ring-[var(--primary)]' : 'hover:border-[var(--primary)] hover:shadow-lg'}`}
                                 >
                                     <CardContent className="p-4 md:p-6">
-                                        {editingItem?.id === item.id ? (
-                                            <div className="space-y-6">
-                                                <div className="flex justify-between items-center">
-                                                    <h3 className="font-black text-xs uppercase tracking-widest text-[var(--primary)]">Edit Product</h3>
-                                                    <Button variant="ghost" size="icon" onClick={() => setEditingItem(null)} className="h-8 w-8 rounded-lg">
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                                                    <div className="md:col-span-2 space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Product Name</label>
-                                                        <Input
-                                                            className="h-12 text-base font-bold bg-white/50"
-                                                            value={editingItem.name}
-                                                            onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2 space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Brand Name</label>
-                                                        <Input
-                                                            className="h-12 text-base font-bold bg-white/50"
-                                                            value={editingItem.brand_name || ""}
-                                                            onChange={(e) => setEditingItem({ ...editingItem, brand_name: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Form</label>
-                                                        <Select
-                                                            value={editingItem.form || ""}
-                                                            onChange={(value) => setEditingItem({ ...editingItem, form: value })}
-                                                        >
-                                                            <SelectTrigger className="bg-white/50 font-bold" placeholder="Select Form" />
-                                                            <SelectContent>
-                                                                <SelectItem value="Tablet">Tablet</SelectItem>
-                                                                <SelectItem value="Capsule">Capsule</SelectItem>
-                                                                <SelectItem value="Syrup">Syrup</SelectItem>
-                                                                <SelectItem value="Injection">Injection</SelectItem>
-                                                                <SelectItem value="Drop">Drop</SelectItem>
-                                                                <SelectItem value="Cream">Cream</SelectItem>
-                                                                <SelectItem value="Gel">Gel</SelectItem>
-                                                                <SelectItem value="Ointment">Ointment</SelectItem>
-                                                                <SelectItem value="Powder">Powder</SelectItem>
-                                                                <SelectItem value="Spray">Spray</SelectItem>
-                                                                <SelectItem value="Other">Other</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Price (₹)</label>
-                                                        <Input
-                                                            type="number"
-                                                            className="h-12 text-base font-bold bg-white/50"
-                                                            value={editingItem.price}
-                                                            onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) })}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Stock</label>
-                                                        <Input
-                                                            type="number"
-                                                            className="h-12 text-base font-bold bg-white/50"
-                                                            value={editingItem.stock}
-                                                            onChange={(e) => setEditingItem({ ...editingItem, stock: parseInt(e.target.value) })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-[var(--border)] border-dashed">
-                                                    <Button variant="ghost" className="w-full sm:w-auto px-6 h-11 rounded-xl font-bold" onClick={() => setEditingItem(null)}>Cancel</Button>
-                                                    <Button
-                                                        variant="default"
-                                                        className="w-full sm:w-auto px-8 h-11 rounded-xl font-black uppercase tracking-widest text-xs glow-primary"
-                                                        onClick={handleUpdateItem}
-                                                    >
-                                                        Save
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                                                {/* Product Icon & Name */}
-                                                <div className="flex items-start gap-4 flex-1 min-w-0">
-                                                    <div className="w-12 h-12 md:w-14 md:h-14 bg-[var(--surface-bg)] rounded-2xl flex-shrink-0 flex items-center justify-center text-[var(--primary)] shadow-sm group-hover:scale-110 transition-transform duration-500 mt-1">
-                                                        <Package className="w-6 h-6 md:w-7 md:h-7" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="font-black text-[var(--text-main)] text-lg md:text-xl italic break-words group-hover:text-[var(--primary)] transition-colors leading-tight">
-                                                            {item.name}
-                                                        </h3>
-                                                        {item.brand_name && (
-                                                            <p className="text-sm font-medium text-[var(--text-muted)] mt-1">
-                                                                {item.brand_name} {item.form && <span className="text-[var(--primary)] mx-1">•</span>} {item.form}
-                                                            </p>
-                                                        )}
-                                                        {!item.brand_name && item.form && (
-                                                            <p className="text-sm font-medium text-[var(--text-muted)] mt-1">
-                                                                {item.form}
-                                                            </p>
-                                                        )}
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] opacity-60 mt-1">ID: {item.id.slice(0, 8)}</p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Price & Stock */}
-                                                <div className="flex flex-row items-center justify-between lg:justify-start gap-8 lg:gap-12 px-2 lg:px-6 lg:border-x border-[var(--border)] border-dashed flex-shrink-0">
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] opacity-60">Price</p>
-                                                        <p className="text-xl md:text-2xl font-black text-[var(--text-main)] whitespace-nowrap">₹{item.price}</p>
-                                                    </div>
-                                                    <div className="space-y-1.5 text-right lg:text-left min-w-[80px]">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] opacity-60">Stock</p>
-                                                        <Badge
-                                                            variant={item.stock > 10 ? 'success' : item.stock > 0 ? 'warning' : 'destructive'}
-                                                            className="font-black text-[10px] px-3 md:px-4 py-1.5 uppercase tracking-widest"
-                                                        >
-                                                            {item.stock} Units
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-
-                                                {/* Actions */}
-                                                <div className="flex items-center justify-end gap-2 border-t lg:border-t-0 pt-4 lg:pt-0 border-[var(--border)] border-dashed lg:border-none flex-shrink-0">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => setEditingItem(item)}
-                                                        className="h-10 w-10 md:h-12 md:w-12 rounded-xl text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] transition-all"
-                                                    >
-                                                        <Edit2 className="w-5 h-5" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleDeleteItem(item.id)}
-                                                        className="h-10 w-10 md:h-12 md:w-12 rounded-xl text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 transition-all"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <InventoryItemCard
+                                            item={item}
+                                            isEditing={editingItemId === item.id}
+                                            onEditStart={() => setEditingItemId(item.id)}
+                                            onEditCancel={() => setEditingItemId(null)}
+                                            onUpdate={handleUpdateItem}
+                                            onDelete={handleDeleteItem}
+                                        />
                                     </CardContent>
                                 </Card>
                             </motion.div>
