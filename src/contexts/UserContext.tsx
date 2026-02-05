@@ -43,7 +43,7 @@ export function UserProvider({ children }: UserProviderProps) {
 
   async function fetchProfile(userId: string): Promise<Profile | null> {
     console.log('Fetching profile for user:', userId);
-    
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -62,12 +62,12 @@ export function UserProvider({ children }: UserProviderProps) {
         });
         return null;
       }
-      
+
       if (!data) {
         console.warn('No profile found for user:', userId);
         return null;
       }
-      
+
       console.log('Profile fetched successfully:', data);
       return data;
     } catch (err) {
@@ -180,21 +180,21 @@ export function UserProvider({ children }: UserProviderProps) {
   useEffect(() => {
     let mounted = true;
 
-// Check initial session first
+    // Check initial session first
     const checkInitialSession = async () => {
       try {
         console.log('Checking initial session...');
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         console.log('Session found:', { session: !!session, user: !!session?.user });
-        
+
         if (session?.user && mounted) {
           console.log('Setting user in context:', session.user.id);
           setUser(session.user);
           const profileData = await fetchProfile(session.user.id);
-          
+
           console.log('Profile data received:', profileData);
-          
+
           if (mounted) {
             setProfile(profileData);
             // Only redirect if we're on landing page AND have a profile
@@ -256,7 +256,7 @@ export function UserProvider({ children }: UserProviderProps) {
     };
   }, [router]);
 
-  const contextValue: UserContextType = {
+  const contextValue = React.useMemo<UserContextType>(() => ({
     user,
     profile,
     loading,
@@ -264,7 +264,7 @@ export function UserProvider({ children }: UserProviderProps) {
     signup,
     logout,
     refreshProfile,
-  };
+  }), [user, profile, loading]);
 
   return (
     <UserContext.Provider value={contextValue}>

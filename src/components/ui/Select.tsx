@@ -12,6 +12,7 @@ interface SelectContextType {
     open: boolean;
     setOpen: (open: boolean) => void;
     triggerRef: React.RefObject<HTMLButtonElement | null>;
+    contentRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const SelectContext = createContext<SelectContextType | undefined>(undefined);
@@ -26,10 +27,15 @@ export function Select({ value, onChange, children }: SelectProps) {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            const isOutsideContainer = containerRef.current && !containerRef.current.contains(target);
+            const isOutsideContent = contentRef.current && !contentRef.current.contains(target);
+
+            if (isOutsideContainer && isOutsideContent) {
                 setOpen(false);
             }
         }
@@ -38,7 +44,7 @@ export function Select({ value, onChange, children }: SelectProps) {
     }, []);
 
     return (
-        <SelectContext.Provider value={{ value, onChange, open, setOpen, triggerRef }}>
+        <SelectContext.Provider value={{ value, onChange, open, setOpen, triggerRef, contentRef }}>
             <div ref={containerRef} className="relative w-full">
                 {children}
             </div>
@@ -56,10 +62,6 @@ export function SelectTrigger({ placeholder, className, children }: SelectTrigge
     const context = useContext(SelectContext);
     if (!context) throw new Error("SelectTrigger must be used within Select");
     const { open, setOpen, value, triggerRef } = context;
-
-    // Use children to render specific selected value display if needed, otherwise default to placeholder/value
-    // In this simple implementation, we might depend on the parent passing the label if it's complex,
-    // or we can just render the value. For now, let's keep it flexible.
 
     return (
         <button
@@ -88,7 +90,7 @@ interface SelectContentProps {
 export function SelectContent({ children, className }: SelectContentProps) {
     const context = useContext(SelectContext);
     if (!context) throw new Error("SelectContent must be used within Select");
-    const { open, triggerRef } = context;
+    const { open, triggerRef, contentRef } = context;
     const [mounted, setMounted] = useState(false);
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
 
@@ -98,12 +100,21 @@ export function SelectContent({ children, className }: SelectContentProps) {
 
     useEffect(() => {
         if (open && triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            setCoords({
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX,
-                width: rect.width
-            });
+            const updatePosition = () => {
+                if (triggerRef.current) {
+                    const rect = triggerRef.current.getBoundingClientRect();
+                    setCoords({
+                        top: rect.bottom + window.scrollY,
+                        left: rect.left + window.scrollX,
+                        width: rect.width
+                    });
+                }
+            };
+
+            updatePosition();
+            // Optional: listen to scroll/resize to update position
+            window.addEventListener('resize', updatePosition);
+            return () => window.removeEventListener('resize', updatePosition);
         }
     }, [open, triggerRef]);
 
@@ -113,6 +124,7 @@ export function SelectContent({ children, className }: SelectContentProps) {
         <AnimatePresence>
             {open && (
                 <motion.div
+                    ref={contentRef}
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -153,7 +165,8 @@ export function SelectItem({ value, children, className }: SelectItemProps) {
     return (
         <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+                e.stopPropagation(); // Prevent bubbling causing issues
                 onChange(value);
                 setOpen(false);
             }}

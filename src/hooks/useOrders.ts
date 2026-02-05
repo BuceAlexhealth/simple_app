@@ -29,7 +29,7 @@ interface OrdersResponse {
 
 const fetchOrders = async (userId: string): Promise<OrdersResponse> => {
   const { orders: ordersRepo } = createRepositories(supabase);
-  
+
   const data = await handleAsyncError(
     () => ordersRepo.getOrdersByUserId(userId, 'pharmacist'),
     "Failed to fetch orders"
@@ -40,7 +40,7 @@ const fetchOrders = async (userId: string): Promise<OrdersResponse> => {
   }
 
   const orderData = data as any[];
-  
+
   // Extract order items from the nested query result
   const orderItems = orderData.reduce((acc, order) => {
     if (order.order_items && order.order_items.length > 0) {
@@ -109,13 +109,14 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
       return fetchOrders(user.id);
     },
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: OrderStatus }) => {
       const { orders: ordersRepo } = createRepositories(supabase);
-      
+
       const success = await handleAsyncError(
         () => ordersRepo.updateOrderStatus(orderId, newStatus),
         `Failed to update order status to ${newStatus}`
@@ -130,7 +131,7 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
     onSuccess: async ({ orderId, newStatus }) => {
       await updateOrderChatMessage(orderId, newStatus);
       safeToast.success(`Order status updated to ${newStatus}`);
-      
+
       // Invalidate and refetch orders
       queryClient.invalidateQueries({ queryKey: ['orders', user?.id] });
     },

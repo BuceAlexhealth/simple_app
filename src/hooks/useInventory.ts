@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { InventoryItem } from "@/types";
 import { safeToast } from "@/lib/error-handling";
@@ -77,13 +78,13 @@ export const useInventory = () => {
 
   // This function now just stores adjustments locally
   const updateAdjustment = (itemId: string, quantity: number) => {
-    setAdjustments(prev => ({
+    setAdjustments((prev: Record<string, number>) => ({
       ...prev,
       [itemId]: quantity
     }));
   };
 
-  const hasAdjustments = Object.values(adjustments).some(v => v > 0);
+  const hasAdjustments = Object.values(adjustments).some((v: number) => v > 0);
 
   const recordOfflineSales = () => {
     if (data?.items) {
@@ -101,6 +102,3 @@ export const useInventory = () => {
     refetch
   };
 };
-
-// Fix the missing import
-import { useState } from "react";
