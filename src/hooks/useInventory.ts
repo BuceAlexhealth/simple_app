@@ -5,7 +5,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { InventoryItem } from "@/types";
 import { safeToast } from "@/lib/error-handling";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 
 interface InventoryResponse {
   items: InventoryItem[];
@@ -47,7 +47,7 @@ export const useInventory = () => {
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
+    // REMOVED: placeholderData causing infinite loading on tab switch
   });
 
   const recordOfflineSalesMutation = useMutation({

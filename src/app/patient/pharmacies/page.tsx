@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, CheckCircle2, Store } from "lucide-react";
 import { toast } from "sonner";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { usePharmacies } from "@/hooks/usePharmacies";
 import { supabase } from "@/lib/supabase";
 import { handleAsyncError } from "@/lib/error-handling";

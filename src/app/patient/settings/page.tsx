@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -36,21 +36,9 @@ interface PatientProfile {
 }
 
 export default function PatientSettingsPage() {
-  const { user, profile, refreshProfile } = useUser();
-  const [loading, setLoading] = useState(false);
+  const { user, profile, loading, refreshProfile } = useUser();
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "notifications">("profile");
-
-  // Guard for unauthenticated users
-  if (!user || !profile) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <p className="text-[var(--text-muted)]">Please log in to access settings</p>
-        </div>
-      </div>
-    );
-  }
 
   // Profile state
   const [profileData, setProfileData] = useState<PatientProfile>({
@@ -82,8 +70,6 @@ export default function PatientSettingsPage() {
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
     
-    setLoading(true);
-    
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
     const { data, error } = await supabase
@@ -105,13 +91,34 @@ export default function PatientSettingsPage() {
       date_of_birth: data?.date_of_birth || "",
       avatar_url: data?.avatar_url || "",
     });
-
-    setLoading(false);
-  }, [user?.id, profile?.full_name]); // Only depend on specific values
+  }, [user?.id, profile?.full_name]);
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  // Show loading spinner while initializing
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
+          <p className="text-sm text-[var(--text-muted)]">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard for unauthenticated users
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-[var(--text-muted)]">Please log in to access settings</p>
+        </div>
+      </div>
+    );
+  }
 
   // Save profile changes
   const handleSaveProfile = async () => {

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 
 interface Pharmacy {
   id: string;

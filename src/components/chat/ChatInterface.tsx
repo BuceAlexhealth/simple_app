@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/hooks/useAuth";
 import {
     Send,
     User,
@@ -24,10 +25,11 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ role }: ChatInterfaceProps) {
+    const { user: currentUser, loading: userLoading } = useUser();
+    
     // Data State
     const [connections, setConnections] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
-    const [currentUser, setCurrentUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     // UI State
@@ -44,16 +46,30 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
     const myIdField = role === 'patient' ? 'patient_id' : 'pharmacy_id';
     const otherIdField = role === 'patient' ? 'pharmacy_id' : 'patient_id';
 
-    const fetchConnections = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setCurrentUser(user);
+    // Show loading while UserContext is initializing
+    if (userLoading) {
+        return (
+            <div className="flex items-center justify-center h-[60vh]">
+                <Loader2 className="w-10 h-10 text-[var(--primary)] animate-spin" />
+            </div>
+        );
+    }
 
+    // Don't render if no user
+    if (!currentUser) {
+        return (
+            <div className="flex items-center justify-center h-[60vh]">
+                <p className="text-[var(--text-muted)]">Please log in to access chats</p>
+            </div>
+        );
+    }
+
+    const fetchConnections = useCallback(async () => {
         // Fetch connections where I am the "myIdField"
         const { data, error } = await supabase
             .from("connections")
             .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-            .eq(myIdField, user.id);
+            .eq(myIdField, currentUser.id);
 
         if (data) {
             // Structure is slightly inconsistent in original files (array vs object) 
@@ -69,10 +85,9 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
             setConnections(unique);
         }
         setLoading(false);
-    }, [myIdField, otherIdField]);
+    }, [currentUser.id, myIdField, otherIdField]);
 
     const fetchMessages = useCallback(async (otherId: string) => {
-        if (!currentUser) return;
         const { data } = await supabase
             .from("messages")
             .select("*")
@@ -80,10 +95,9 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
             .order("created_at", { ascending: true });
 
         setMessages(data || []);
-    }, [currentUser]);
+    }, [currentUser.id]);
 
     const subscribeToMessages = useCallback((otherId: string) => {
-        if (!currentUser) return () => { };
         const channel = supabase
             .channel(`chat:${otherId}`)
             .on(
@@ -101,7 +115,7 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [currentUser]);
+    }, [currentUser.id]);
 
     // Initial Load
     useEffect(() => {
@@ -111,15 +125,11 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         
         // Direct fetch to avoid dependency issues
         const initFetch = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            setCurrentUser(user);
-
             // Fetch connections where I am the "myIdField"
             const { data, error } = await supabase
                 .from("connections")
                 .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-                .eq(myIdField, user.id);
+                .eq(myIdField, currentUser.id);
 
             if (data) {
                 const normalized = data.map((c: any) => {
@@ -135,7 +145,7 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         
         initFetch();
         return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+    }, [currentUser.id, myIdField, otherIdField]);
 
     // Load Messages when connection selected
     useEffect(() => {
@@ -155,8 +165,8 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        if (!e.target.files || !e.target.files[0] || !selectedConnection) return;
+async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        if (!e.target.files || !e.target.files[0] || !currentUser) return;
 
         setIsUploading(true);
         const file = e.target.files[0];
@@ -189,7 +199,7 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         if (e) e.preventDefault();
 
         const content = newMessage.trim();
-        if ((!content && !imageUrl) || !selectedConnection) return;
+        if ((!content && !imageUrl) || !selectedConnection || !currentUser) return;
 
         if (!imageUrl) setNewMessage("");
 
@@ -294,7 +304,7 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className={`text-sm font-bold truncate ${selectedConnection?.id === conn.id ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                                    {conn.full_name || 'Unknown'}
+{conn.full_name || 'Unknown'}
                                                 </h4>
                                                 <p className={`text-xs truncate ${selectedConnection?.id === conn.id ? 'text-indigo-600' : 'text-slate-400'}`}>
                                                     {statusText}

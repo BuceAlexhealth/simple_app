@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useUser } from '@/contexts/UserContext';
+import { useUser } from '@/hooks/useAuth';
 import { createRepositories } from '@/lib/repositories';
 import { notifications, handleError } from '@/lib/notifications';
 import { CHAT_CONFIG } from '@/config/constants';

@@ -4,6 +4,9 @@ export { useOrders } from './useOrders';
 export { usePharmacies } from './usePharmacies';
 export { usePatientMedications } from './usePatientMedications';
 
+// Auth hook
+export { useAuth, useUser, useRequireAuth } from './useAuth';
+
 // Other hooks
 export { useChatConnections } from './useChatConnections';
 export { useInviteLink } from './useInviteLink';

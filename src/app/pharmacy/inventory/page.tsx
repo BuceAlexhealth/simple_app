@@ -5,7 +5,7 @@ import { Plus, Package, X, Search, Boxes, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useInventory } from "@/hooks/useInventory";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { handleAsyncError } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";

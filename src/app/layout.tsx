@@ -5,7 +5,6 @@ import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { UserProvider } from "@/contexts/UserContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ReactQueryProvider } from "@/providers/ReactQueryProvider";
 
@@ -32,14 +31,12 @@ export default function RootLayout({
       >
 <ReactQueryProvider>
           <ThemeProvider>
-            <UserProvider>
-              <CartProvider>
-                <ErrorBoundary>
-                  {children}
-                  <Toaster position="top-center" richColors />
-                </ErrorBoundary>
-              </CartProvider>
-            </UserProvider>
+            <CartProvider>
+              <ErrorBoundary>
+                {children}
+                <Toaster position="top-center" richColors />
+              </ErrorBoundary>
+            </CartProvider>
           </ThemeProvider>
         </ReactQueryProvider>
       </body>

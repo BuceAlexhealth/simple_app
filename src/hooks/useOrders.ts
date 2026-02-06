@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Order, OrderStatus } from "@/types";
 import { handleAsyncError, safeToast } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 
 interface OrderItem {
   id: string;
@@ -113,7 +113,7 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
     refetchInterval: 1000 * 30, // Poll every 30 seconds
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
+    // REMOVED: placeholderData causing infinite loading on tab switch
   });
 
   const updateStatusMutation = useMutation({

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { InventoryItem } from "@/types";
 
 interface Pharmacy {
@@ -82,7 +82,7 @@ export const usePatientMedications = () => {
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
+    // REMOVED: placeholderData causing infinite loading on tab switch
   });
 
   return {

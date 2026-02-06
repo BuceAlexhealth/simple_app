@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -38,8 +38,7 @@ interface PharmacyProfile {
 }
 
 export default function PharmacySettingsPage() {
-  const { user, profile, refreshProfile } = useUser();
-  const [loading, setLoading] = useState(false);
+  const { user, profile, loading, refreshProfile } = useUser();
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "pharmacy" | "security" | "notifications">("profile");
 
@@ -71,13 +70,10 @@ export default function PharmacySettingsPage() {
     smsAlerts: false,
   });
 
-  // Load pharmacy profile data
+// Load pharmacy profile data
   const loadProfile = useCallback(async () => {
     if (!user) return;
     
-    setLoading(true);
-    
-    // Get user email from auth
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
     // Get pharmacy details from profiles table or create default
@@ -101,13 +97,34 @@ export default function PharmacySettingsPage() {
       license_number: data?.license_number || "",
       avatar_url: data?.avatar_url || "",
     });
-
-    setLoading(false);
   }, [user, profile]);
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [loadProfile]);
+
+  // Show loading spinner while initializing
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
+          <p className="text-sm text-[var(--text-muted)]">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard for unauthenticated users
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-[var(--text-muted)]">Please log in to access settings</p>
+        </div>
+      </div>
+    );
+  }
 
   // Save profile changes
   const handleSaveProfile = async () => {

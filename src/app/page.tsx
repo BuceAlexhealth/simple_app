@@ -6,28 +6,23 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/Card";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useUser } from "@/contexts/UserContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Home() {
-  const { login, signup, loading, user } = useUser();
+  const { login, signup, loading, user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role] = useState<"patient" | "pharmacist">("patient");
   const [fullName, setFullName] = useState("");
 
-  // Redirect if already authenticated
-  if (user) {
-    return null; // UserContext will handle redirection
-  }
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isLogin) {
-      await login(email, password);
+      login.mutate({ email, password });
     } else {
-      await signup(email, password, fullName, role);
+      signup.mutate({ email, password, fullName, role });
       if (!loading) {
         setIsLogin(true);
       }

@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { createRepositories } from "@/lib/repositories";
-import { useUser } from "@/contexts/UserContext";
+import { useUser } from "@/hooks/useAuth";
 import { useCart, useCartValidation } from "@/contexts/CartContext";
 import { format, notifications } from "@/lib/notifications";
 
