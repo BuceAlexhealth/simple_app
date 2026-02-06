@@ -108,9 +108,34 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        fetchConnections();
+        
+        // Direct fetch to avoid dependency issues
+        const initFetch = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            setCurrentUser(user);
+
+            // Fetch connections where I am the "myIdField"
+            const { data, error } = await supabase
+                .from("connections")
+                .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
+                .eq(myIdField, user.id);
+
+            if (data) {
+                const normalized = data.map((c: any) => {
+                    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+                    return profile;
+                }).filter(Boolean);
+
+                const unique = Array.from(new Map(normalized.map((p: any) => [p.id, p])).values());
+                setConnections(unique);
+            }
+            setLoading(false);
+        };
+        
+        initFetch();
         return () => window.removeEventListener('resize', checkMobile);
-    }, [fetchConnections]);
+    }, []);
 
     // Load Messages when connection selected
     useEffect(() => {

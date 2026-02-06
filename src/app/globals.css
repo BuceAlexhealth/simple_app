@@ -112,7 +112,7 @@
   .card-premium:hover {
     box-shadow: var(--shadow-md);
     border-color: var(--border-light);
-    transform: translateY(-2px) scale(1.01);
+    transform: translateY(-2px);
   }
 
   .card-premium-interactive {
@@ -122,7 +122,7 @@
   .card-premium-interactive:hover {
     box-shadow: var(--shadow-lg);
     border-color: var(--primary);
-    transform: translateY(-4px) scale(1.02);
+    transform: translateY(-2px);
   }
 
   .card-premium-interactive:active {
@@ -152,12 +152,12 @@
   }
 
   .btn-premium:hover {
-    box-shadow: var(--shadow-primary);
-    transform: translateY(-1px) scale(1.02);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
   }
 
   .btn-premium:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0);
     box-shadow: var(--shadow-sm);
   }
 

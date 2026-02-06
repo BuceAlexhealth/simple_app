@@ -20,6 +20,7 @@ interface OrderItem {
 
 export interface UseOrdersOptions {
   filter?: 'all' | 'patient' | 'pharmacy';
+  role?: 'pharmacist' | 'patient';
 }
 
 interface OrdersResponse {
@@ -27,11 +28,11 @@ interface OrdersResponse {
   orderItems: Record<string, OrderItem[]>;
 }
 
-const fetchOrders = async (userId: string): Promise<OrdersResponse> => {
+const fetchOrders = async (userId: string, role: 'pharmacist' | 'patient' = 'pharmacist'): Promise<OrdersResponse> => {
   const { orders: ordersRepo } = createRepositories(supabase);
 
   const data = await handleAsyncError(
-    () => ordersRepo.getOrdersByUserId(userId, 'pharmacist'),
+    () => ordersRepo.getOrdersByUserId(userId, role),
     "Failed to fetch orders"
   );
 
@@ -55,9 +56,8 @@ const fetchOrders = async (userId: string): Promise<OrdersResponse> => {
   };
 };
 
-const updateOrderChatMessage = async (orderId: string, status: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+const updateOrderChatMessage = async (orderId: string, status: string, userId: string) => {
+  if (!userId) return;
 
   const { messages: messagesRepo } = createRepositories(supabase);
 
@@ -74,7 +74,7 @@ const updateOrderChatMessage = async (orderId: string, status: string) => {
       .from("messages")
       .select("id, content")
       .eq("sender_id", order.patient_id)
-      .eq("receiver_id", user.id)
+      .eq("receiver_id", userId)
       .like("content", `%ORDER_ID:${orderId}%`)
       .single();
 
@@ -96,6 +96,7 @@ const updateOrderChatMessage = async (orderId: string, status: string) => {
 export const useOrders = (options: UseOrdersOptions = {}) => {
   const { user } = useUser();
   const queryClient = useQueryClient();
+  const role = options.role || 'pharmacist';
 
   const {
     data,
@@ -103,14 +104,16 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['orders', user?.id],
+    queryKey: ['orders', user?.id, role],
     queryFn: () => {
       if (!user?.id) throw new Error("User not authenticated");
-      return fetchOrders(user.id);
+      return fetchOrders(user.id, role);
     },
     enabled: !!user?.id,
-    staleTime: 0, // Always fetch fresh data
-    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
+    refetchInterval: 1000 * 30, // Poll every 30 seconds
+    placeholderData: (previousData) => previousData, // Keep previous data while loading
   });
 
   const updateStatusMutation = useMutation({
@@ -129,7 +132,7 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
       return { orderId, newStatus };
     },
     onSuccess: async ({ orderId, newStatus }) => {
-      await updateOrderChatMessage(orderId, newStatus);
+      await updateOrderChatMessage(orderId, newStatus, user?.id || '');
       safeToast.success(`Order status updated to ${newStatus}`);
 
       // Invalidate and refetch orders

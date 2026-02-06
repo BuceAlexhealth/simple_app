@@ -3,28 +3,20 @@
 import React from "react";
 import { Plus, Minus, ShoppingCart, Store } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { InventoryItem, CartItem } from "@/types";
+import { InventoryItem } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/contexts/CartContext";
 
 interface MedicationCardProps {
   item: InventoryItem;
-  cart: CartItem[];
-  cartQuantity: number;
-  onAddToCart: (item: InventoryItem) => void;
-  onUpdateQuantity: (itemId: string, delta: number) => void;
-  isOutOfStock: boolean;
 }
 
-export const MedicationCard = React.memo<MedicationCardProps>(({
-  item,
-  cart,
-  cartQuantity,
-  onAddToCart,
-  onUpdateQuantity,
-  isOutOfStock
-}) => {
+export const MedicationCard = React.memo<MedicationCardProps>(({ item }) => {
+  const { addToCart, updateQuantity, getItemQuantity, isOutOfStock } = useCart();
+  const cartQuantity = getItemQuantity(item.id);
+  const outOfStock = isOutOfStock(item);
   return (
     <motion.div
       layout
@@ -88,7 +80,7 @@ export const MedicationCard = React.memo<MedicationCardProps>(({
                   >
                     <button
                       className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all transform active:scale-90"
-                      onClick={() => onUpdateQuantity(item.id, -1)}
+                      onClick={() => updateQuantity(item.id, -1)}
                     >
                       <Minus className="h-5 w-5" />
                     </button>
@@ -99,8 +91,8 @@ export const MedicationCard = React.memo<MedicationCardProps>(({
 
                     <button
                       className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all transform active:scale-90 disabled:opacity-30"
-                      onClick={() => onUpdateQuantity(item.id, 1)}
-                      disabled={isOutOfStock}
+                      onClick={() => updateQuantity(item.id, 1)}
+                      disabled={outOfStock}
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -116,7 +108,7 @@ export const MedicationCard = React.memo<MedicationCardProps>(({
                       variant={item.stock > 0 ? "gradient" : "outline"}
                       className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs gap-2"
                       disabled={item.stock <= 0}
-                      onClick={() => onAddToCart(item)}
+                      onClick={() => addToCart(item)}
                     >
                       <ShoppingCart className="w-4 h-4" />
                       Add to Cart

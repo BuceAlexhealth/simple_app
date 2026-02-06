@@ -17,7 +17,7 @@ interface ThemeContextType extends Theme {
 // Light theme colors - premium, professional palette
 const lightColors: Record<string, string> = {
   // Backgrounds
-  '--app-bg': '#FAFBFC',
+  '--app-bg': '#F8FAFC',
   '--surface-bg': '#FFFFFF',
   '--card-bg': '#FFFFFF',
   '--overlay-bg': 'rgba(255, 255, 255, 0.95)',
@@ -28,11 +28,11 @@ const lightColors: Record<string, string> = {
   '--text-light': '#94A3B8',
   '--text-inverse': '#FFFFFF',
 
-  // Primary colors - professional medical blue
-  '--primary': '#2563EB',
-  '--primary-dark': '#1D4ED8',
-  '--primary-light': '#DBEAFE',
-  '--primary-glow': 'rgba(37, 99, 235, 0.15)',
+  // Primary colors - calming medical teal
+  '--primary': '#0D9488',
+  '--primary-dark': '#0F766E',
+  '--primary-light': '#CCFBF1',
+  '--primary-glow': 'rgba(13, 148, 136, 0.15)',
 
   // Accent colors
   '--success': '#059669',
@@ -80,11 +80,11 @@ const lightColors: Record<string, string> = {
 
 // Dark theme colors - higher contrast, easy on eyes
 const darkColors: Record<string, string> = {
-  // Backgrounds - deep charcoal for higher contrast
-  '--app-bg': '#0F0F14',
-  '--surface-bg': '#1A1D29',
-  '--card-bg': '#23262F',
-  '--overlay-bg': 'rgba(15, 15, 20, 0.95)',
+  // Backgrounds - softer dark mode
+  '--app-bg': '#0F172A',
+  '--surface-bg': '#1E293B',
+  '--card-bg': '#1F2937',
+  '--overlay-bg': 'rgba(15, 23, 42, 0.95)',
 
   // Text colors - pure whites for maximum readability
   '--text-main': '#FFFFFF',
@@ -92,11 +92,11 @@ const darkColors: Record<string, string> = {
   '--text-light': '#71717A',
   '--text-inverse': '#1A1F36',
 
-  // Primary colors - brighter for dark mode
-  '--primary': '#3B82F6',
-  '--primary-dark': '#2563EB',
-  '--primary-light': 'rgba(59, 130, 246, 0.15)',
-  '--primary-glow': 'rgba(59, 130, 246, 0.25)',
+  // Primary colors - softer teal for dark mode
+  '--primary': '#14B8A6',
+  '--primary-dark': '#0D9488',
+  '--primary-light': 'rgba(20, 184, 166, 0.15)',
+  '--primary-glow': 'rgba(20, 184, 166, 0.25)',
 
   // Accent colors - dark mode optimized
   '--success': '#10B981',
@@ -195,13 +195,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
       const handleChange = () => {
-        setThemeState(createTheme('system'));
+        setThemeState(prev => createTheme('system'));
       };
 
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
-  }, [theme.mode]);
+  }, []); // Only set up listener once
 
   // Apply theme colors to CSS variables
   useEffect(() => {

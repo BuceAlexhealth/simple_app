@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
-import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X, Loader } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useOrders } from "@/hooks/useOrders";
+import { Package, Clock, CheckCircle2, ShoppingBag, ArrowRight, MessageSquare, X, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { handleAsyncError } from "@/lib/error-handling";
-import { createRepositories } from "@/lib/repositories";
-import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface OrderItem {
     id: string;
@@ -31,85 +29,21 @@ interface Order {
 }
 
 export default function PatientOrdersPage() {
-    const { user, loading: userLoading } = useUser();
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { orders, orderItems, loading } = useOrders({ role: 'patient' });
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-    const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
-
-    const fetchOrders = useCallback(async () => {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            setLoading(false);
-            return;
-        }
-
-        const { orders: ordersRepo } = createRepositories(supabase);
-        const data = await handleAsyncError(
-            () => ordersRepo.getOrdersByUserId(user.id, 'patient'),
-            "Failed to fetch orders"
-        );
-
-        if (data) {
-            const orderData = data as any[];
-            setOrders(orderData);
-
-            // Extract order items from the nested query result
-            const itemsByOrder = orderData.reduce((acc, order) => {
-                if (order.order_items && order.order_items.length > 0) {
-                    acc[order.id] = order.order_items;
-                }
-                return acc;
-            }, {} as Record<string, OrderItem[]>);
-            setOrderItems(itemsByOrder);
-        }
-        setLoading(false);
-    }, []);
 
     useEffect(() => {
-        fetchOrders();
-
-        // Check for hash navigation
         const hash = window.location.hash;
         if (hash.startsWith('#order-')) {
             const orderId = hash.replace('#order-', '');
             setExpandedOrderId(orderId);
         }
-
-        // Subscribe to changes
-        const channel = supabase
-            .channel('patient-orders')
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'orders' },
-                (payload) => {
-                    setOrders(current =>
-                        current.map(o => o.id === payload.new.id ? { ...o, status: payload.new.status } : o)
-                    );
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [fetchOrders]);
-
-    const getStatusInfo = (status: Order['status']) => {
-        switch (status) {
-            case 'placed': return { text: "Pharmacist is reviewing", icon: <Clock className="w-4 h-4" />, style: "badge-warning" };
-            case 'ready': return { text: "Ready for collection!", icon: <Package className="w-4 h-4" />, style: "badge-primary" };
-            case 'complete': return { text: "Order fulfilled", icon: <CheckCircle2 className="w-4 h-4" />, style: "badge-success" };
-            default: return { text: status, icon: null, style: "bg-slate-100" };
-        }
-    };
+    }, []);
 
     const toggleOrderExpansion = (orderId: string) => {
         const newExpandedId = expandedOrderId === orderId ? null : orderId;
         setExpandedOrderId(newExpandedId);
 
-        // Update URL hash without page reload
         if (newExpandedId) {
             window.history.pushState(null, '', `#order-${newExpandedId}`);
         } else {
@@ -123,7 +57,6 @@ export default function PatientOrdersPage() {
             if (hash.startsWith('#order-')) {
                 const orderId = hash.replace('#order-', '');
                 setExpandedOrderId(orderId);
-                // Scroll to the expanded order
                 setTimeout(() => {
                     const element = document.getElementById(`order-${orderId}`);
                     element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -137,140 +70,216 @@ export default function PatientOrdersPage() {
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
+    const getStatusInfo = (status: Order['status']) => {
+        switch (status) {
+            case 'placed': return { 
+                text: "Pharmacist is reviewing", 
+                icon: <Clock className="w-3 h-3" />, 
+                variant: "warning" as const
+            };
+            case 'ready': return { 
+                text: "Ready for collection!", 
+                icon: <Package className="w-3 h-3" />, 
+                variant: "default" as const
+            };
+            case 'complete': return { 
+                text: "Order fulfilled", 
+                icon: <CheckCircle2 className="w-3 h-3" />, 
+                variant: "success" as const
+            };
+            default: return { 
+                text: status, 
+                icon: null, 
+                variant: "secondary" as const
+            };
+        }
+    };
+
     return (
-        <div className="space-y-8 slide-up">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 rounded-2xl">
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto space-y-6"
+        >
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-black text-[var(--text-main)] tracking-tight">Purchase <span className="text-[var(--primary)]">History</span></h2>
-                    <p className="text-sm font-medium text-[var(--text-muted)]">Track and manage your medical orders.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Package className="w-5 h-5 text-[var(--primary)]" />
+                        <span className="text-sm font-medium text-[var(--primary)]">Order History</span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-[var(--text-main)]">My Orders</h1>
+                    <p className="text-[var(--text-muted)] mt-1">
+                        Track and manage your medical orders
+                    </p>
                 </div>
+
                 <Link href="/patient">
-                    <Button variant="default" className="rounded-xl font-black uppercase tracking-widest text-xs shadow-lg glow-primary">
-                        <ShoppingBag className="w-4 h-4 mr-2" /> New Order
+                    <Button className="gap-2">
+                        <ShoppingBag className="w-4 h-4" />
+                        New Order
                     </Button>
                 </Link>
             </div>
 
-            {loading || userLoading ? (
-                <div className="loading-container">
-                    <Loader className="loading-spinner" />
+            {/* Orders List */}
+            {loading && orders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
+                    <p className="text-sm text-[var(--text-muted)]">Loading orders...</p>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {orders.map((order) => {
-                        const status = getStatusInfo(order.status);
-                        const isExpanded = expandedOrderId === order.id;
-                        const items = orderItems[order.id] || [];
+                    <AnimatePresence mode="popLayout">
+                        {orders.map((order: Order) => {
+                            const status = getStatusInfo(order.status);
+                            const isExpanded = expandedOrderId === order.id;
+                            const items = orderItems[order.id] || [];
 
-                        return (
-                            <div key={order.id} id={`order-${order.id}`} className={`card-style border-none bg-white p-0 overflow-hidden transition-all duration-300 ${isExpanded ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}>
-                                <div className="p-6">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference ID</span>
-                                            <span className="font-bold text-slate-800">#{order.id.slice(0, 12)}</span>
-                                        </div>
-                                        <div className={`badge ${status.style} flex items-center gap-1.5`}>
-                                            {status.icon}
-                                            {order.status}
-                                        </div>
-                                    </div>
+                            return (
+                                <motion.div
+                                    key={order.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    id={`order-${order.id}`}
+                                >
+                                    <Card className={`overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-[var(--primary)]' : ''}`}>
+                                        <CardContent className="p-5">
+                                            {/* Order Header */}
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <p className="text-xs text-[var(--text-muted)] mb-1">Order ID</p>
+                                                    <p className="font-mono text-sm text-[var(--text-main)]">
+                                                        #{order.id.slice(0, 12)}
+                                                    </p>
+                                                </div>
+                                                <Badge variant={status.variant} className="text-xs">
+                                                    {status.icon}
+                                                    <span className="ml-1">{order.status}</span>
+                                                </Badge>
+                                            </div>
 
-                                    <div className="msg-bubble msg-bubble-in w-full max-w-none mb-0 bg-slate-50 border-none">
-                                        <div className="flex items-start gap-4">
-                                            <div className={`p-3 rounded-2xl ${order.status === 'ready' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                                                <ShoppingBag className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-sm font-bold text-slate-800">{status.text}</p>
-                                                <p className="text-xs text-slate-500 mt-1">
-                                                    Updated {new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Expanded Order Details */}
-                                    {isExpanded && (
-                                        <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h4 className="font-bold text-slate-800 text-sm">Order Details</h4>
-                                                <button
-                                                    onClick={() => toggleOrderExpansion(order.id)}
-                                                    className="text-blue-600 hover:text-blue-700 p-1"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {items.map((item, index) => (
-                                                    <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded-lg">
-                                                        <span className="font-medium text-slate-700">
-                                                            {(item as any).inventory?.name || `Item ${index + 1}`}
-                                                        </span>
-                                                        <div className="text-right">
-                                                            <span className="text-slate-600">Qty: {item.quantity}</span>
-                                                            <span className="ml-4 text-slate-800 font-medium">
-                                                                ₹{(item.price_at_time * item.quantity).toFixed(2)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <div className="border-t border-blue-200 pt-2 mt-2">
-                                                    <div className="flex items-center justify-between font-bold text-slate-800">
-                                                        <span>Total</span>
-                                                        <span className="text-lg">₹{order.total_price.toFixed(2)}</span>
-                                                    </div>
+                                            {/* Status Message */}
+                                            <div className="flex items-start gap-3 p-3 bg-[var(--surface-bg)] rounded-lg mb-4">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                    order.status === 'ready' 
+                                                        ? 'bg-[var(--primary-light)] text-[var(--primary)]' 
+                                                        : 'bg-[var(--border)] text-[var(--text-muted)]'
+                                                }`}>
+                                                    <ShoppingBag className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-[var(--text-main)] text-sm">
+                                                        {status.text}
+                                                    </p>
+                                                    <p className="text-xs text-[var(--text-muted)]">
+                                                        {new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
 
-                                    <div className="mt-4 flex items-center justify-between pt-4 border-t border-slate-50">
-                                        <div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Total</p>
-                                            <p className="font-black text-slate-800 text-xl">₹{order.total_price}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={() => toggleOrderExpansion(order.id)}
-                                                className="text-blue-600 font-bold text-xs hover:underline flex items-center gap-1"
-                                            >
-                                                {isExpanded ? 'Hide' : 'View'} Details
-                                                {isExpanded ? <X className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
-                                            </button>
-                                            <Link href="/patient/chats" className="flex items-center gap-2 text-[var(--primary)] font-bold text-xs hover:underline">
-                                                Contact Pharmacist <MessageSquare className="w-4 h-4" />
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-slate-50 p-3 flex justify-center text-[var(--primary)]">
-                                    <button
-                                        onClick={() => toggleOrderExpansion(order.id)}
-                                        className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
-                                    >
-                                        View Full Receipt <ArrowRight className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                                            {/* Expanded Details */}
+                                            <AnimatePresence>
+                                                {isExpanded && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="p-4 bg-[var(--surface-bg)] rounded-lg border border-[var(--border)] mb-4">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <h4 className="font-medium text-[var(--text-main)] text-sm">Order Details</h4>
+                                                                <button
+                                                                    onClick={() => toggleOrderExpansion(order.id)}
+                                                                    className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-1"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {items.map((item: OrderItem, index: number) => (
+                                                                    <div key={item.id} className="flex items-center justify-between text-sm p-2 bg-[var(--card-bg)] rounded-lg border border-[var(--border)]">
+                                                                        <span className="font-medium text-[var(--text-main)]">
+                                                                            {item.inventory?.name || `Item ${index + 1}`}
+                                                                        </span>
+                                                                        <div className="flex items-center gap-4">
+                                                                            <span className="text-xs text-[var(--text-muted)]">Qty: {item.quantity}</span>
+                                                                            <span className="font-semibold text-[var(--text-main)]">
+                                                                                ₹{(item.price_at_time * item.quantity).toFixed(2)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                                <div className="pt-3 border-t border-[var(--border)]">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-sm text-[var(--text-muted)]">Total</span>
+                                                                        <span className="text-lg font-bold text-[var(--text-main)]">
+                                                                            ₹{order.total_price.toFixed(2)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Order Footer */}
+                                            <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+                                                <div>
+                                                    <p className="text-xs text-[var(--text-muted)]">Order Total</p>
+                                                    <p className="text-xl font-bold text-[var(--text-main)]">
+                                                        ₹{order.total_price.toFixed(2)}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => toggleOrderExpansion(order.id)}
+                                                        className="text-[var(--primary)] hover:bg-[var(--primary-light)]"
+                                                    >
+                                                        {isExpanded ? 'Hide' : 'Details'}
+                                                        {isExpanded ? <X className="w-4 h-4 ml-1" /> : <ArrowRight className="w-4 h-4 ml-1" />}
+                                                    </Button>
+                                                    <Link href="/patient/chats">
+                                                        <Button variant="outline" size="sm" className="gap-1.5">
+                                                            <MessageSquare className="w-4 h-4" />
+                                                            Contact
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
 
                     {orders.length === 0 && (
-                        <div className="empty-state">
-                            <div className="empty-state-icon">
-                                <ShoppingBag className="w-10 h-10 text-slate-300" />
-                            </div>
-                            <h3 className="empty-state-title">Your order history is empty</h3>
-                            <p className="empty-state-text">Medications you order will appear here.</p>
-                            <Link href="/patient" className="mt-6 inline-block btn-primary">
-                                Start Shopping
-                            </Link>
-                        </div>
+                        <Card className="border-dashed">
+                            <CardContent className="p-12 flex flex-col items-center justify-center text-center">
+                                <div className="w-16 h-16 bg-[var(--surface-bg)] rounded-2xl flex items-center justify-center mb-4">
+                                    <ShoppingBag className="w-8 h-8 text-[var(--text-muted)]" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-[var(--text-main)] mb-2">
+                                    Your order history is empty
+                                </h3>
+                                <p className="text-[var(--text-muted)] max-w-sm mb-6">
+                                    Medications you order will appear here.
+                                </p>
+                                <Link href="/patient">
+                                    <Button>Start Shopping</Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
                     )}
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 }

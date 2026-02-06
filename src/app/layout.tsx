@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { ReactQueryProvider } from "@/providers/ReactQueryProvider";
 
 const inter = Inter({
@@ -32,10 +33,12 @@ export default function RootLayout({
 <ReactQueryProvider>
           <ThemeProvider>
             <UserProvider>
-              <ErrorBoundary>
-                {children}
-                <Toaster position="top-center" richColors />
-              </ErrorBoundary>
+              <CartProvider>
+                <ErrorBoundary>
+                  {children}
+                  <Toaster position="top-center" richColors />
+                </ErrorBoundary>
+              </CartProvider>
             </UserProvider>
           </ThemeProvider>
         </ReactQueryProvider>

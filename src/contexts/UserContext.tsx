@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -41,9 +41,7 @@ export function UserProvider({ children }: UserProviderProps) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  async function fetchProfile(userId: string): Promise<Profile | null> {
-    console.log('Fetching profile for user:', userId);
-
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -51,39 +49,26 @@ export function UserProvider({ children }: UserProviderProps) {
         .eq('id', userId)
         .single();
 
-      console.log('Profile query result:', { data, error });
-
       if (error) {
-        console.error('Profile fetch error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
+        console.error('Profile fetch error:', error);
         return null;
       }
 
-      if (!data) {
-        console.warn('No profile found for user:', userId);
-        return null;
-      }
-
-      console.log('Profile fetched successfully:', data);
       return data;
     } catch (err) {
       console.error('Profile fetch unexpected error:', err);
       return null;
     }
-  }
+  }, []);
 
-  async function refreshProfile() {
+  const refreshProfile = useCallback(async () => {
     if (user) {
       const profileData = await fetchProfile(user.id);
       setProfile(profileData);
     }
-  }
+  }, [user, fetchProfile]);
 
-  async function login(email: string, password: string): Promise<boolean> {
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -94,9 +79,9 @@ export function UserProvider({ children }: UserProviderProps) {
       }
 
       if (data.user) {
+        setUser(data.user);
         const profileData = await fetchProfile(data.user.id);
         if (profileData) {
-          setUser(data.user);
           setProfile(profileData);
           toast.success("Welcome back!");
           router.replace(profileData.role === "pharmacist" ? "/pharmacy" : "/patient");
@@ -113,9 +98,9 @@ export function UserProvider({ children }: UserProviderProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router, fetchProfile]);
 
-  async function signup(email: string, password: string, fullName: string, role: 'patient' | 'pharmacist'): Promise<boolean> {
+  const signup = useCallback(async (email: string, password: string, fullName: string, role: 'patient' | 'pharmacist'): Promise<boolean> => {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -145,9 +130,8 @@ export function UserProvider({ children }: UserProviderProps) {
         }
 
         if (data.session) {
-          const profileData = await fetchProfile(data.user.id);
           setUser(data.user);
-          setProfile(profileData);
+          setProfile({ id: data.user.id, role, full_name: fullName });
           toast.success("Account created successfully!");
           router.replace("/patient");
           return true;
@@ -163,9 +147,9 @@ export function UserProvider({ children }: UserProviderProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       await supabase.auth.signOut();
       setUser(null);
@@ -175,86 +159,40 @@ export function UserProvider({ children }: UserProviderProps) {
     } catch (err: any) {
       toast.error("Logout error: " + err.message);
     }
-  }
+  }, [router]);
 
   useEffect(() => {
-    let mounted = true;
 
-    // Check initial session first
-    const checkInitialSession = async () => {
-      try {
-        console.log('Checking initial session...');
-        const { data: { session } } = await supabase.auth.getSession();
-
-        console.log('Session found:', { session: !!session, user: !!session?.user });
-
-        if (session?.user && mounted) {
-          console.log('Setting user in context:', session.user.id);
-          setUser(session.user);
-          const profileData = await fetchProfile(session.user.id);
-
-          console.log('Profile data received:', profileData);
-
-          if (mounted) {
-            setProfile(profileData);
-            // Only redirect if we're on landing page AND have a profile
-            if (window.location.pathname === '/' && profileData) {
-              console.log('Redirecting to dashboard based on role:', profileData.role);
-              router.replace(profileData.role === "pharmacist" ? "/pharmacy" : "/patient");
-            } else if (window.location.pathname === '/' && !profileData) {
-              // User exists but no profile - this might be a data issue
-              console.warn('User exists but no profile found');
-              toast.error("Profile not found. Please contact support.");
-            }
-          }
-        } else if (mounted) {
-          console.log('No session found, setting user to null');
-          setUser(null);
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error("Initial session check error:", err);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    checkInitialSession();
-
-    // Listen for auth changes after initial check
+    // Single auth state handler - simpler and more reliable
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (event === 'TOKEN_REFRESHED') return; // Ignore token refreshes
 
       if (session?.user) {
         setUser(session.user);
-        const profileData = await fetchProfile(session.user.id);
 
-        if (mounted) {
+        const profileData = await fetchProfile(session.user.id);
+        setProfile(profileData);
+
+
+        // Only redirect if on landing page
+        if (!profile || profile.id !== session.user.id) {
+          const profileData = await fetchProfile(session.user.id);
           setProfile(profileData);
-          // Only redirect on sign in events
-          if (event === 'SIGNED_IN' && profileData) {
+
+          // Only redirect if on landing page
+          if (window.location.pathname === '/' && profileData) {
             router.replace(profileData.role === "pharmacist" ? "/pharmacy" : "/patient");
           }
         }
       } else {
-        if (mounted) {
-          setUser(null);
-          setProfile(null);
-        }
+        setUser(null);
+        setProfile(null);
       }
-      // Ensure loading is always set to false after auth state changes
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    return () => subscription.unsubscribe();
+  }, [router, fetchProfile, profile]);
 
   const contextValue = React.useMemo<UserContextType>(() => ({
     user,
@@ -264,7 +202,7 @@ export function UserProvider({ children }: UserProviderProps) {
     signup,
     logout,
     refreshProfile,
-  }), [user, profile, loading]);
+  }), [user, profile, loading, login, signup, logout, refreshProfile]);
 
   return (
     <UserContext.Provider value={contextValue}>

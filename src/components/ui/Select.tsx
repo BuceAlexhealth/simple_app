@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useRef, useEffect } from "r
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Check } from "lucide-react";
-import { cn } from "@/components/ui/Button"; // Reusing cn from Button
+import { cn } from "@/lib/utils";
 
 interface SelectContextType {
     value: string;

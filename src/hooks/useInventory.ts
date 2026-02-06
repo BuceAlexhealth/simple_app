@@ -45,7 +45,9 @@ export const useInventory = () => {
       return fetchInventory(user.id);
     },
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000, // 1 minute - inventory changes frequently
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    placeholderData: (previousData) => previousData, // Keep previous data while loading
   });
 
   const recordOfflineSalesMutation = useMutation({

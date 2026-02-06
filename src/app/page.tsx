@@ -70,7 +70,7 @@ export default function Home() {
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-[var(--text-main)] leading-tight">
+            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-[var(--text-main)] leading-tight">
               Healthcare management <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-[var(--info)]">reimagined.</span>
             </h2>
@@ -85,8 +85,8 @@ export default function Home() {
                 <Pill className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-[var(--text-main)]">Smart Inventory</p>
-                <p className="text-xs text-[var(--text-muted)]">Real-time availability</p>
+                <p className="font-medium text-[var(--text-main)]">Smart Inventory</p>
+                <p className="text-sm text-[var(--text-muted)]">Real-time availability</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-[var(--surface-bg)] rounded-2xl border border-[var(--border)] shadow-sm">
@@ -94,8 +94,8 @@ export default function Home() {
                 <Stethoscope className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-[var(--text-main)]">Expert Care</p>
-                <p className="text-xs text-[var(--text-muted)]">Direct pharmacist chat</p>
+                <p className="font-medium text-[var(--text-main)]">Expert Care</p>
+                <p className="text-sm text-[var(--text-muted)]">Direct pharmacist chat</p>
               </div>
             </div>
           </div>
@@ -107,7 +107,7 @@ export default function Home() {
             <div className="lg:hidden mx-auto mb-4 w-12 h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center shadow-lg">
               <Activity className="text-white w-6 h-6" />
             </div>
-            <CardTitle className="text-2xl font-bold mb-1">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
+            <CardTitle className="text-2xl font-semibold mb-1">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
             <CardDescription>
               {isLogin ? "Enter your credentials to access your account" : "Join thousands of users managing their health"}
             </CardDescription>
@@ -117,7 +117,7 @@ export default function Home() {
               {!isLogin && (
                 <div className="space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] ml-1">Full Name</label>
+                    <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Full name</label>
                     <Input
                       type="text"
                       placeholder="John Doe"
@@ -131,7 +131,7 @@ export default function Home() {
               )}
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] ml-1">Email Address</label>
+                <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Email address</label>
                 <Input
                   type="email"
                   placeholder="name@example.com"
@@ -144,7 +144,7 @@ export default function Home() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] ml-1">Password</label>
+                  <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Password</label>
                   {isLogin && <a href="#" className="text-xs text-[var(--primary)] hover:underline">Forgot?</a>}
                 </div>
                 <Input
@@ -159,7 +159,7 @@ export default function Home() {
 
               <Button
                 type="submit"
-                className="w-full h-12 mt-6 text-base shadow-lg shadow-[var(--primary-glow)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+                 className="w-full h-12 mt-6 text-base transition-all"
                 size="lg"
                 isLoading={loading}
               >

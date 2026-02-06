@@ -1,22 +1,16 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { InventoryItem, CartItem } from "@/types";
+import { InventoryItem } from "@/types";
 import { MedicationCard } from "./MedicationCard";
 
 interface VirtualizedMedicationListProps {
   items: InventoryItem[];
-  cart: CartItem[];
-  onAddToCart: (item: InventoryItem) => void;
-  onUpdateQuantity: (itemId: string, delta: number) => void;
   maxVisible?: number;
 }
 
 export const VirtualizedMedicationList = React.memo<VirtualizedMedicationListProps>(({
   items,
-  cart,
-  onAddToCart,
-  onUpdateQuantity,
   maxVisible = 6
 }) => {
   // For now, implement simple pagination instead of full virtualization
@@ -36,23 +30,12 @@ export const VirtualizedMedicationList = React.memo<VirtualizedMedicationListPro
   return (
     <div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleItems.map((item) => {
-          const cartItem = cart.find(i => i.id === item.id);
-          const cartQuantity = cartItem?.quantity || 0;
-          const isOutOfStock = item.stock <= cartQuantity;
-
-          return (
-            <MedicationCard
-              key={item.id}
-              item={item}
-              cart={cart}
-              cartQuantity={cartQuantity}
-              onAddToCart={onAddToCart}
-              onUpdateQuantity={onUpdateQuantity}
-              isOutOfStock={isOutOfStock}
-            />
-          );
-        })}
+        {visibleItems.map((item) => (
+          <MedicationCard
+            key={item.id}
+            item={item}
+          />
+        ))}
       </div>
       
       {hasMore && (

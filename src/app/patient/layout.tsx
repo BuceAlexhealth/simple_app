@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { ArrowLeft, User, Search, ShoppingCart, Store, MessageCircle, LogOut, Package } from "lucide-react";
+import { ArrowLeft, User, Search, ShoppingCart, Store, MessageCircle, LogOut, Package, Settings } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -22,6 +22,7 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
         { label: "My Orders", href: "/patient/orders", icon: Package },
         { label: "Pharmacies", href: "/patient/pharmacies", icon: Store },
         { label: "Messages", href: "/patient/chats", icon: MessageCircle },
+        { label: "Settings", href: "/patient/settings", icon: Settings },
     ];
 
     return (
@@ -29,11 +30,7 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
             <Sidebar
                 title="Patient Portal"
                 subtitle="Health Services"
-                logo={
-                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-lg flex items-center justify-center shadow-md">
-                        <User className="w-5 h-5 text-white" />
-                    </div>
-                }
+                logo={<User className="w-5 h-5 text-white" />}
                 items={navItems}
                 onSignOut={handleSignOut}
             />

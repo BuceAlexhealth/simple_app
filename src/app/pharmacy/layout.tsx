@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Store, ClipboardList, Package, MessageCircle } from "lucide-react";
+import { Store, ClipboardList, Package, MessageCircle, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
@@ -18,6 +18,7 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
         { label: "Orders", href: "/pharmacy", icon: ClipboardList },
         { label: "Inventory", href: "/pharmacy/inventory", icon: Package },
         { label: "Chats", href: "/pharmacy/chats", icon: MessageCircle },
+        { label: "Settings", href: "/pharmacy/settings", icon: Settings },
     ];
 
     return (
@@ -25,11 +26,7 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
             <Sidebar
                 title="Pharmacy Manager"
                 subtitle="Admin Dashboard"
-                logo={
-                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-lg flex items-center justify-center shadow-md">
-                        <Store className="w-5 h-5 text-white" />
-                    </div>
-                }
+                logo={<Store className="w-5 h-5 text-white" />}
                 items={navItems}
                 onSignOut={handleSignOut}
             />
