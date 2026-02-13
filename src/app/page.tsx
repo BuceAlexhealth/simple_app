@@ -61,15 +61,15 @@ export default function Home() {
             <div className="w-12 h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]">
               <Activity className="text-white w-7 h-7" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--text-main)]">PharmaPlus</h1>
+            <h1 className="heading-3xl text-main text-spacing-tight">PharmaPlus</h1>
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-[var(--text-main)] leading-tight">
+            <h2 className="heading-3xl md:heading-3xl text-main text-spacing-tight leading-tight">
               Healthcare management <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-[var(--info)]">reimagined.</span>
             </h2>
-            <p className="text-lg text-[var(--text-muted)] max-w-md leading-relaxed">
+            <p className="text-lg text-muted max-w-md leading-relaxed">
               Connect with pharmacies, manage prescriptions, and track your health journey in one premium, secure platform.
             </p>
           </div>
@@ -81,7 +81,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="font-medium text-[var(--text-main)]">Smart Inventory</p>
-                <p className="text-sm text-[var(--text-muted)]">Real-time availability</p>
+                <p className="text-caption">Real-time availability</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-[var(--surface-bg)] rounded-2xl border border-[var(--border)] shadow-sm">
@@ -90,7 +90,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="font-medium text-[var(--text-main)]">Expert Care</p>
-                <p className="text-sm text-[var(--text-muted)]">Direct pharmacist chat</p>
+                <p className="text-caption">Direct pharmacist chat</p>
               </div>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function Home() {
             <div className="lg:hidden mx-auto mb-4 w-12 h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center shadow-lg">
               <Activity className="text-white w-6 h-6" />
             </div>
-            <CardTitle className="text-2xl font-semibold mb-1">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
+              <CardTitle className="heading-xl mb-1">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
             <CardDescription>
               {isLogin ? "Enter your credentials to access your account" : "Join thousands of users managing their health"}
             </CardDescription>
@@ -112,7 +112,7 @@ export default function Home() {
               {!isLogin && (
                 <div className="space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Full name</label>
+                    <label className="text-label ml-1">Full name</label>
                     <Input
                       type="text"
                       placeholder="John Doe"
@@ -126,7 +126,7 @@ export default function Home() {
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Email address</label>
+                <label className="text-label ml-1">Email address</label>
                 <Input
                   type="email"
                   placeholder="name@example.com"
@@ -139,8 +139,8 @@ export default function Home() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium text-[var(--text-muted)] ml-1">Password</label>
-                  {isLogin && <a href="#" className="text-xs text-[var(--primary)] hover:underline">Forgot?</a>}
+                  <label className="text-label ml-1">Password</label>
+                  {isLogin && <a href="#" className="text-link-underline text-xs">Forgot?</a>}
                 </div>
                 <Input
                   type="password"
@@ -167,7 +167,7 @@ export default function Home() {
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 border-t border-[var(--border-subtle)] bg-[var(--surface-bg)]/50 p-6">
-            <div className="text-center text-sm text-[var(--text-muted)]">
+            <div className="text-center text-caption">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
               <button
                 onClick={() => setIsLogin(!isLogin)}

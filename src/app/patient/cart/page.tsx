@@ -103,9 +103,9 @@ export default function PatientCartPage() {
 
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-20 space-y-4">
-                <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
-                <p className="text-sm text-[var(--text-muted)]">Loading cart...</p>
+            <div className="max-w-4xl mx-auto loading-container">
+                <Loader2 className="loading-spinner" />
+                <p className="loading-text">Loading cart...</p>
             </div>
         );
     }
@@ -135,15 +135,15 @@ export default function PatientCartPage() {
             </div>
 
             {cart.length === 0 ? (
-                <Card className="border-dashed">
-                    <CardContent className="p-12 flex flex-col items-center justify-center text-center">
-                        <div className="w-16 h-16 bg-[var(--surface-bg)] rounded-2xl flex items-center justify-center mb-4">
-                            <ShoppingBag className="w-8 h-8 text-[var(--primary)]" />
+                <Card className="empty-state-card">
+                    <CardContent className="empty-state-container">
+                        <div className="empty-state-icon-large">
+                            <ShoppingBag className="empty-state-icon-large-icon" />
                         </div>
-                        <h3 className="text-xl font-semibold text-[var(--text-main)] mb-2">
+                        <h3 className="empty-state-title">
                             Your cart is empty
                         </h3>
-                        <p className="text-[var(--text-muted)] mb-6 max-w-sm">
+                        <p className="empty-state-description">
                             Add some medications to your cart to proceed with checkout.
                         </p>
                         <Link href="/patient">
