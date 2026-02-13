@@ -1221,11 +1221,11 @@
   }
 
   .border-left-warning {
-    border-color: var(--warning-500);
+    border-left-color: var(--warning-500);
   }
 
   .border-left-error {
-    border-color: var(--error-500);
+    border-left-color: var(--error-500);
   }
 
   /* Status Color Utilities */
