@@ -95,6 +95,7 @@ export function SelectContent({ children, className }: SelectContentProps) {
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 

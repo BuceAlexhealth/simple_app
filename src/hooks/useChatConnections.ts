@@ -7,10 +7,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/hooks/useAuth';
 import { createRepositories } from '@/lib/repositories';
-import { notifications, handleError } from '@/lib/notifications';
+import { handleError } from '@/lib/notifications';
 import { CHAT_CONFIG } from '@/config/constants';
 import { logger } from '@/lib/logger';
-import { queryKeys } from '@/lib/queryKeys';
 
 export interface ChatConnection {
   id: string;
@@ -49,7 +48,7 @@ export function useChatConnections(isPharmacy: boolean = false): ChatConnectionH
 
     try {
       const { connections: connectionsRepo } = createRepositories(supabase);
-      
+
       let result;
       if (isPharmacy) {
         // Get connected patients for pharmacy
@@ -96,7 +95,7 @@ export function useChatConnections(isPharmacy: boolean = false): ChatConnectionH
 
   const searchConnections = useCallback((query: string) => {
     if (!query.trim()) return connections;
-    
+
     return connections.filter(conn =>
       conn.full_name.toLowerCase().includes(query.toLowerCase()) ||
       (conn.last_message && conn.last_message.toLowerCase().includes(query.toLowerCase()))
@@ -116,11 +115,11 @@ export function useChatConnections(isPharmacy: boolean = false): ChatConnectionH
       try {
         // Check for new messages and update last_message
         const { messages: messagesRepo } = createRepositories(supabase);
-        
+
         for (const connection of connections) {
           const connectionId = isPharmacy ? connection.id : user.id;
           const otherId = isPharmacy ? user.id : connection.id;
-          
+
           const recentMessages = await messagesRepo.getMessagesForUser(
             connectionId,
             1, // Get last message
@@ -132,8 +131,8 @@ export function useChatConnections(isPharmacy: boolean = false): ChatConnectionH
             setConnections(prev => {
               // Check if message is actually new before updating
               const existingConnection = prev.find(conn => conn.id === connection.id);
-              if (!existingConnection || 
-                  new Date(lastMessage.created_at) > new Date(existingConnection.last_message_time || 0)) {
+              if (!existingConnection ||
+                new Date(lastMessage.created_at) > new Date(existingConnection.last_message_time || 0)) {
                 return prev.map(conn =>
                   conn.id === connection.id
                     ? { ...conn, last_message: lastMessage.content, last_message_time: lastMessage.created_at }

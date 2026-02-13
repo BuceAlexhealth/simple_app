@@ -175,7 +175,7 @@ export function MessageForm({
         type="submit"
         onClick={handleSubmit}
         disabled={!message.trim() || disabled || loading || isOverLimit}
-        className="absolute right-2 bottom-2 p-1.5 rounded-md bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="absolute right-2 bottom-2 p-1.5 rounded-md bg-[var(--primary)] text-[var(--text-inverse)] hover:bg-[var(--primary-dark)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

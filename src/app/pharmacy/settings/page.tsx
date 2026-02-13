@@ -14,7 +14,6 @@ import {
   Save,
   Loader2,
   Camera,
-  Mail,
   Phone,
   MapPin,
   Shield,
@@ -24,7 +23,6 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";
-import { handleAsyncError } from "@/lib/error-handling";
 
 interface PharmacyProfile {
   id: string;
@@ -100,6 +98,7 @@ export default function PharmacySettingsPage() {
   }, [user, profile]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProfile();
   }, [loadProfile]);
 
@@ -209,7 +208,9 @@ export default function PharmacySettingsPage() {
     setSaving(false);
   };
 
-  const tabs = [
+  type TabId = "profile" | "pharmacy" | "security" | "notifications";
+  
+  const tabs: { id: TabId; label: string; icon: typeof User }[] = [
     { id: "profile", label: "Profile", icon: User },
     { id: "pharmacy", label: "Pharmacy Info", icon: Store },
     { id: "security", label: "Security", icon: Lock },
@@ -254,7 +255,7 @@ export default function PharmacySettingsPage() {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
+                      onClick={() => setActiveTab(tab.id)}
                       className={`settings-tab-button ${
                         activeTab === tab.id
                           ? "settings-tab-active"

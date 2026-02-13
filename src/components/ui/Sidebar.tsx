@@ -39,7 +39,7 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
         <div className="p-6 pb-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-3">
                 <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center text-[var(--text-inverse)] shadow-lg">
                         {logo}
                     </div>
                 </div>
@@ -68,7 +68,7 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
                                 isActive
-                                    ? "bg-[var(--primary)] text-white shadow-md"
+                                    ? "bg-[var(--primary)] text-[var(--text-inverse)] shadow-md"
                                     : "text-[var(--text-muted)] hover:bg-[var(--surface-bg)] hover:text-[var(--text-main)]"
                             )}
                             whileHover={{ x: isActive ? 0 : 2 }}
@@ -76,7 +76,7 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
                         >
                             <Icon className={cn(
                                 "w-5 h-5 flex-shrink-0",
-                                isActive ? "text-white" : "text-[var(--text-muted)]"
+                                isActive ? "text-[var(--text-inverse)]" : "text-[var(--text-muted)]"
                             )} />
                             <span className="font-medium text-sm">{item.label}</span>
                             {isActive && (
@@ -116,6 +116,7 @@ export function Sidebar({ title, subtitle, logo, items, onSignOut, className }: 
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsOpen(false);
     }, [pathname]);
 
@@ -133,7 +134,7 @@ export function Sidebar({ title, subtitle, logo, items, onSignOut, className }: 
             {/* Mobile Header Bar */}
             <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[var(--card-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] px-4 flex items-center justify-between z-40">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-lg flex items-center justify-center text-white">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-lg flex items-center justify-center text-[var(--text-inverse)]">
                         {logo}
                     </div>
                     <span className="font-semibold text-[var(--text-main)] text-sm">{title}</span>

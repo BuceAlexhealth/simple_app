@@ -6,7 +6,7 @@
 import { REGEX_PATTERNS } from '@/config/constants';
 import { ORDER_STATUS_CONFIG } from '@/lib/order-status';
 import { logger } from '@/lib/logger';
-import type { OrderStatus, InitiatorType } from '@/types';
+import type { OrderStatus, AuthUser } from '@/types';
 
 export interface ParsedOrderData {
   orderId?: string;
@@ -52,9 +52,9 @@ export function parseOrderMessage(content: string): ParsedOrderData {
 
   // Message type detection
   result.isPharmacyOrder = content.includes("PHARMACY_ORDER_REQUEST");
-  result.isOrderResponse = content.includes("ORDER_ACCEPTED") || 
-                        content.includes("ORDER_REJECTED") || 
-                        content.includes("ORDER_EXPIRED");
+  result.isOrderResponse = content.includes("ORDER_ACCEPTED") ||
+    content.includes("ORDER_REJECTED") ||
+    content.includes("ORDER_EXPIRED");
   result.isCancelled = content.includes("ORDER_STATUS:cancelled");
 
   // Status parsing
@@ -63,14 +63,14 @@ export function parseOrderMessage(content: string): ParsedOrderData {
     // Map status text to OrderStatus enum
     const statusMap: Record<string, OrderStatus> = {
       'placed': 'placed',
-      'ready': 'ready', 
+      'ready': 'ready',
       'complete': 'complete',
       'cancelled': 'cancelled',
       'waiting for patient': 'placed',
       'rejected': 'cancelled',
       'expired': 'cancelled'
     };
-    
+
     result.status = statusMap[statusText.toLowerCase()] || 'placed';
   }
 
@@ -83,17 +83,17 @@ export function parseOrderMessage(content: string): ParsedOrderData {
 export function getOrderActions(
   parsedOrder: ParsedOrderData,
   userRole: 'patient' | 'pharmacy',
-  currentUser: any,
+  currentUser: AuthUser | null,
   onAction?: (action: OrderAction) => void
 ): OrderAction[] {
   const actions: OrderAction[] = [];
-  
+
   if (!parsedOrder.orderId || !parsedOrder.status) {
     return actions;
   }
 
-  const isOwnOrder = userRole === 'patient' ? 
-    currentUser?.id === parsedOrder.orderId : 
+  const isOwnOrder = userRole === 'patient' ?
+    currentUser?.id === parsedOrder.orderId :
     true; // Pharmacy can act on all orders
 
   if (!isOwnOrder) {
@@ -108,27 +108,27 @@ export function getOrderActions(
           label: 'Accept Order',
           variant: 'default',
           icon: 'Check',
-          handler: () => onAction?.({ type: 'accept', label: 'Accept Order', variant: 'default', icon: 'Check', handler: () => {} })
+          handler: () => onAction?.({ type: 'accept', label: 'Accept Order', variant: 'default', icon: 'Check', handler: () => { } })
         });
       }
-      
+
       if (parsedOrder.status === 'placed' && !parsedOrder.isPharmacyOrder) {
         actions.push({
           type: 'cancel',
           label: 'Cancel Order',
           variant: 'destructive',
           icon: 'X',
-          handler: () => onAction?.({ type: 'cancel', label: 'Cancel Order', variant: 'destructive', icon: 'X', handler: () => {} })
+          handler: () => onAction?.({ type: 'cancel', label: 'Cancel Order', variant: 'destructive', icon: 'X', handler: () => { } })
         });
       }
-      
+
       if (parsedOrder.status === 'ready') {
         actions.push({
           type: 'complete',
           label: 'Mark as Received',
           variant: 'default',
           icon: 'Check',
-          handler: () => onAction?.({ type: 'complete', label: 'Mark as Received', variant: 'default', icon: 'Check', handler: () => {} })
+          handler: () => onAction?.({ type: 'complete', label: 'Mark as Received', variant: 'default', icon: 'Check', handler: () => { } })
         });
       }
       break;
@@ -140,25 +140,25 @@ export function getOrderActions(
           label: 'Accept Order',
           variant: 'default',
           icon: 'Check',
-          handler: () => onAction?.({ type: 'accept', label: 'Accept Order', variant: 'default', icon: 'Check', handler: () => {} })
+          handler: () => onAction?.({ type: 'accept', label: 'Accept Order', variant: 'default', icon: 'Check', handler: () => { } })
         });
-        
+
         actions.push({
           type: 'reject',
           label: 'Reject Order',
           variant: 'destructive',
           icon: 'X',
-          handler: () => onAction?.({ type: 'reject', label: 'Reject Order', variant: 'destructive', icon: 'X', handler: () => {} })
+          handler: () => onAction?.({ type: 'reject', label: 'Reject Order', variant: 'destructive', icon: 'X', handler: () => { } })
         });
       }
-      
+
       if (parsedOrder.status === 'ready') {
         actions.push({
           type: 'complete',
           label: 'Mark as Completed',
           variant: 'default',
           icon: 'Check',
-          handler: () => onAction?.({ type: 'complete', label: 'Mark as Completed', variant: 'default', icon: 'Check', handler: () => {} })
+          handler: () => onAction?.({ type: 'complete', label: 'Mark as Completed', variant: 'default', icon: 'Check', handler: () => { } })
         });
       }
       break;
@@ -173,7 +173,7 @@ export function getOrderActions(
 export function getOrderBubbleStyles(parsedOrder: ParsedOrderData) {
   const isCancelled = parsedOrder.isCancelled;
   const status = parsedOrder.status;
-  
+
   const colors = {
     background: isCancelled ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100',
     header: isCancelled ? 'bg-red-100/50' : 'bg-emerald-100/50',
@@ -210,8 +210,8 @@ export function formatOrderDisplay(parsedOrder: ParsedOrderData) {
     total: parsedOrder.total ? `₹${parsedOrder.total.toFixed(2)}` : '₹0.00',
     items: parsedOrder.items || 'Items',
     notes: parsedOrder.notes || 'None',
-    statusText: parsedOrder.status ? 
-      ORDER_STATUS_CONFIG.getText(parsedOrder.status, 'pharmacy') : 
+    statusText: parsedOrder.status ?
+      ORDER_STATUS_CONFIG.getText(parsedOrder.status, 'pharmacy') :
       'Unknown',
     displayText: parsedOrder.lines || '',
   };
@@ -222,18 +222,18 @@ export function formatOrderDisplay(parsedOrder: ParsedOrderData) {
  */
 export class OrderProcessingService {
   static async updateOrderStatus(
-    orderId: string, 
-    newStatus: OrderStatus, 
+    orderId: string,
+    newStatus: OrderStatus,
     userRole: 'patient' | 'pharmacy'
-    ): Promise<boolean> {
+  ): Promise<boolean> {
     try {
       logger.info('OrderProcessingService', `Updating order ${orderId} to ${newStatus} by ${userRole}`);
-      
+
       // TODO: Implement actual order status update
       // In real implementation, you'd call:
       // const { orders } = createRepositories(supabase);
       // await orders.updateOrderStatus(orderId, newStatus);
-      
+
       return Promise.resolve(true);
     } catch (error) {
       logger.error('OrderProcessingService', 'Failed to update order status', error);
@@ -248,7 +248,7 @@ export class OrderProcessingService {
   ): Promise<boolean> {
     try {
       logger.info('OrderProcessingService', `Sending notification for order ${orderId}: ${message}`);
-      
+
       // TODO: Implement actual notification sending
       // In real implementation, you'd call:
       // const { messages } = createRepositories(supabase);
@@ -258,7 +258,7 @@ export class OrderProcessingService {
       //   content: message,
       //   order_id: orderId
       // });
-      
+
       return Promise.resolve(true);
     } catch (error) {
       logger.error('OrderProcessingService', 'Failed to send order notification', error);
@@ -266,7 +266,7 @@ export class OrderProcessingService {
     }
   }
 
-    static validateOrderAction(
+  static validateOrderAction(
     currentStatus: OrderStatus,
     action: OrderAction['type'],
     userRole: 'patient' | 'pharmacy'

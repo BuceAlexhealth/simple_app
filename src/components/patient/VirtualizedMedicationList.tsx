@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { InventoryItem } from "@/types";
 import { MedicationCard } from "./MedicationCard";
+import { Button } from "@/components/ui/Button";
 
 interface VirtualizedMedicationListProps {
   items: InventoryItem[];
@@ -40,12 +41,9 @@ export const VirtualizedMedicationList = React.memo<VirtualizedMedicationListPro
       
       {hasMore && (
         <div className="text-center mt-6">
-          <button
-            onClick={loadMore}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-          >
+          <Button onClick={loadMore} size="lg">
             Load More ({items.length - visibleCount} remaining)
-          </button>
+          </Button>
         </div>
       )}
     </div>

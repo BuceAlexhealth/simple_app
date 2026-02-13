@@ -16,9 +16,9 @@ interface StatsGridProps {
 
 const colorClasses = {
   default: "text-[var(--text-main)]",
-  success: "text-emerald-600",
-  warning: "text-amber-600", 
-  error: "text-red-600"
+  success: "text-[var(--success)]",
+  warning: "text-[var(--warning)]", 
+  error: "text-[var(--error)]"
 };
 
 export function StatsGrid({ stats, columns = 4 }: StatsGridProps) {

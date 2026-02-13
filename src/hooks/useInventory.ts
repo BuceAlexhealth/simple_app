@@ -71,10 +71,10 @@ export const useInventory = () => {
     onSuccess: () => {
       safeToast.success("EOD adjustments applied successfully!");
       // Invalidate and refetch inventory
-      queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(user?.id) });
       setAdjustments({}); // Clear adjustments
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       safeToast.error(error.message || "Failed to apply EOD adjustments");
     }
   });

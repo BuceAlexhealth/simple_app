@@ -41,7 +41,11 @@ const fetchOrders = async (userId: string, role: 'pharmacist' | 'patient' = 'pha
     throw new Error("Failed to fetch orders");
   }
 
-  const orderData = data as any[];
+  interface OrderWithItems extends Order {
+    order_items: OrderItem[];
+  }
+
+  const orderData = data as OrderWithItems[];
 
   // Extract order items from the nested query result
   const orderItems = orderData.reduce((acc, order) => {
@@ -136,9 +140,9 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
       safeToast.success(`Order status updated to ${newStatus}`);
 
       // Invalidate and refetch orders
-      queryClient.invalidateQueries({ queryKey: ['orders', user?.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders(user?.id, role) });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       safeToast.error(error.message || "Failed to update order status");
     }
   });

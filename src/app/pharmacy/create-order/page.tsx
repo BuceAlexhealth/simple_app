@@ -155,8 +155,7 @@ export default function CreateOrderPage() {
             await messages.sendMessage({
                 sender_id: user.id,
                 receiver_id: selectedPatient.id,
-                content: orderMessage,
-                order_id: orderId
+                content: orderMessage
             });
 
             toast.success("Order sent to patient for acceptance");
@@ -429,7 +428,7 @@ export default function CreateOrderPage() {
                                                 {isSubmitting ? (
                                                     <><Loader className="w-5 h-5 mr-3 animate-spin" /> Transmitting...</>
                                                 ) : (
-                                                    <><CheckCircle2 className="w-5 h-5 mr-3 text-white" /> Dispatch Order</>
+                                                    <><CheckCircle2 className="w-5 h-5 mr-3 text-[var(--text-inverse)]" /> Dispatch Order</>
                                                 )}
                                             </Button>
 

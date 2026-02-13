@@ -91,7 +91,7 @@ export function ChatConnectionList({
           className={cn(
             "p-4 rounded-lg border cursor-pointer transition-all duration-200",
             activeConnectionId === connection.id
-              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-lg"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-[var(--text-inverse)] shadow-lg"
               : "bg-[var(--card-bg)] border-[var(--border)] hover:border-[var(--primary)] hover:shadow-md"
           )}
         >
@@ -99,7 +99,7 @@ export function ChatConnectionList({
             <div className="flex items-center gap-3">
               {/* Avatar */}
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-lg shadow-md">
+                <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-[var(--text-inverse)] font-bold text-lg shadow-md">
                   {connection.full_name ? connection.full_name.charAt(0).toUpperCase() : "U"}
                 </div>
                 {connection.is_online && (

@@ -132,9 +132,10 @@ export default function InventoryPage() {
             setAddItemErrors({});
         } catch (error) {
             if (error instanceof z.ZodError) {
-                const fieldErrors: any = {};
+                const fieldErrors: Partial<Record<keyof InventoryItemInput, string>> = {};
                 error.issues.forEach((err) => {
-                    if (err.path[0]) fieldErrors[err.path[0]] = err.message;
+                    const path = err.path[0] as keyof InventoryItemInput;
+                    if (path) fieldErrors[path] = err.message;
                 });
                 setAddItemErrors(fieldErrors);
                 toast.error("Please fix the validation errors");
@@ -151,9 +152,10 @@ export default function InventoryPage() {
                 setAddBatchErrors({});
             } catch (error) {
                 if (error instanceof z.ZodError) {
-                    const fieldErrors: any = {};
+                    const fieldErrors: Partial<Record<string, string>> = {};
                     error.issues.forEach((err) => {
-                        if (err.path[0]) fieldErrors[err.path[0]] = err.message;
+                        const path = err.path[0] as string;
+                        if (path) fieldErrors[path] = err.message;
                     });
                     setAddBatchErrors(fieldErrors);
                     toast.error("Please fix batch validation errors");

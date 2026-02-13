@@ -60,8 +60,8 @@ export default function PatientSearchPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <Pill className="w-5 h-5 text-[var(--primary)]" />
-                        <span className="text-sm font-medium text-[var(--primary)]">Medications</span>
+                        <Pill className="w-5 h-5 text-[var(--text-light)]" />
+                        <span className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wider">Catalogue</span>
                     </div>
                     <h1 className="text-3xl font-bold text-[var(--text-main)]">Available Medications</h1>
                     <p className="text-[var(--text-muted)] mt-1">
@@ -95,7 +95,7 @@ export default function PatientSearchPage() {
                                 <Link key={pharma.id} href={`/patient/chats?pharmacyId=${pharma.id}`}>
                                     <div className="group p-4 rounded-lg border border-[var(--border)] hover:border-[var(--primary)] transition-all cursor-pointer bg-[var(--card-bg)]">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-white font-bold text-xl shadow-md group-hover:scale-110 transition-transform">
+                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-[var(--text-inverse)] font-bold text-xl shadow-md group-hover:scale-110 transition-transform">
                                                 {pharma.full_name?.[0] || "P"}
                                             </div>
                                             <div className="flex-1 min-w-0">

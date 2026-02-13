@@ -283,3 +283,4 @@ export const useRealtimeAnalytics = ({
 };
 
 export type { MetricEvent, MetricType, TimeRange, DataStatus, DataStreamState };
+export type { OrderEvent, RevenueEvent, InventoryEvent, CustomerEvent };

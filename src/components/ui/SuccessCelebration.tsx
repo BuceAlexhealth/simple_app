@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 
 interface SuccessCelebrationProps {
@@ -16,6 +16,13 @@ export function SuccessCelebration({ show, message = "Success!", onComplete }: S
       return () => clearTimeout(timer);
     }
   }, [show, onComplete]);
+
+  const confettiPositions = useMemo(() => 
+    [...Array(12)].map((_, i) => ({
+      left: 20 + (i * 15),
+      top: 10 + (i * 5),
+    })), 
+  []);
 
   if (!show) return null;
 
@@ -47,13 +54,13 @@ export function SuccessCelebration({ show, message = "Success!", onComplete }: S
         
         {/* Confetti effect (subtle) */}
         <div className="absolute inset-0 pointer-events-none">
-          {[...Array(12)].map((_, i) => (
+          {confettiPositions.map((pos, i) => (
             <div
               key={i}
               className="absolute w-2 h-2 bg-gradient-to-br from-[var(--primary)] to-[var(--success)] rounded-full opacity-60 success-bounce"
               style={{
-                left: `${20 + (i * 15)}%`,
-                top: `${Math.random() * 60}%`,
+                left: `${pos.left}%`,
+                top: `${pos.top}%`,
                 animationDelay: `${0.1 + (i * 0.1)}s`,
                 animationDuration: '1.5s'
               }}

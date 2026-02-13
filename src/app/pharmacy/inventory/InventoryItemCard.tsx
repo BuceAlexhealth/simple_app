@@ -62,10 +62,10 @@ function InventoryItemCardBase({
             return true;
         } catch (error) {
             if (error instanceof z.ZodError) {
-                const fieldErrors: any = {};
+                const fieldErrors: Record<string, string> = {};
                 error.issues.forEach((err) => {
                     if (err.path[0]) {
-                        fieldErrors[err.path[0]] = err.message;
+                        fieldErrors[err.path[0] as string] = err.message;
                     }
                 });
                 setErrors(fieldErrors);

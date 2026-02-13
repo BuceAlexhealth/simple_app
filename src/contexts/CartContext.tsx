@@ -21,7 +21,7 @@ export interface CartContextType extends CartState {
   updateQuantity: (itemId: string, delta: number) => void;
   clearCart: () => void;
   setPharmacy: (pharmacyId: string) => void;
-  
+
   // Utilities
   getItemQuantity: (itemId: string) => number;
   isInCart: (itemId: string) => boolean;
@@ -48,7 +48,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case 'ADD_ITEM': {
       const { item, quantity } = action.payload;
       const existingItemIndex = state.items.findIndex(cartItem => cartItem.id === item.id);
-      
+
       if (existingItemIndex !== -1) {
         // Update existing item quantity
         const newItems = [...state.items];
@@ -56,7 +56,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           newItems[existingItemIndex].quantity + quantity,
           item.stock // Don't exceed stock
         );
-        
+
         if (newQuantity <= 0) {
           newItems.splice(existingItemIndex, 1);
         } else {
@@ -65,7 +65,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
             quantity: newQuantity,
           };
         }
-        
+
         return {
           ...state,
           items: newItems,
@@ -92,13 +92,13 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case 'UPDATE_QUANTITY': {
       const { itemId, delta } = action.payload;
       const itemIndex = state.items.findIndex(item => item.id === itemId);
-      
+
       if (itemIndex === -1) return state;
-      
+
       const newItems = [...state.items];
       const item = newItems[itemIndex];
       const newQuantity = item.quantity + delta;
-      
+
       if (newQuantity <= 0) {
         // Remove item if quantity would be 0 or less
         newItems.splice(itemIndex, 1);
@@ -110,7 +110,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           quantity: Math.min(newQuantity, maxQuantity),
         };
       }
-      
+
       return {
         ...state,
         items: newItems,
@@ -132,7 +132,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
 
     case 'LOAD_CART': {
-      const loadedPharmacyId = action.payload.pharmacyId || 
+      const loadedPharmacyId = action.payload.pharmacyId ||
         (action.payload.items.length > 0 ? action.payload.items[0].pharmacy_id : null);
       return {
         ...state,
@@ -174,7 +174,7 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
       } else {
         localStorage.removeItem(CART_STORAGE_KEY);
       }
-      
+
       if (state.pharmacyId) {
         localStorage.setItem(CART_PHARMACY_KEY, state.pharmacyId);
       }
@@ -188,9 +188,9 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
     try {
       const savedCart = localStorage.getItem(CART_STORAGE_KEY);
       const savedPharmacyId = localStorage.getItem(CART_PHARMACY_KEY);
-      
+
       const cartItems: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
-      
+
       dispatch({
         type: 'LOAD_CART',
         payload: {
@@ -292,14 +292,14 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
     totalItems,
     totalPrice,
     pharmacyId: state.pharmacyId,
-    
+
     // Actions
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
     setPharmacy,
-    
+
     // Utilities
     getItemQuantity,
     isInCart,
@@ -347,7 +347,7 @@ export function useCartValidation() {
     totalQuantity,
     hasLowStock,
     hasCriticalStock,
-    canCheckout: isValid && !hasCriticalStock,
+    canCheckout: isValid, // Changed from isValid && !hasCriticalStock
   };
 }
 

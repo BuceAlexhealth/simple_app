@@ -8,7 +8,8 @@ import {
     Minus,
     ShoppingBag,
     CreditCard,
-    Loader2
+    Loader2,
+    AlertCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +21,7 @@ import { createRepositories } from "@/lib/repositories";
 import { useUser } from "@/hooks/useAuth";
 import { useCart, useCartValidation } from "@/contexts/CartContext";
 import { format, notifications } from "@/lib/notifications";
+import { Order, OrderStatus } from "@/types";
 
 export default function PatientCartPage() {
     const [isOrdering, setIsOrdering] = useState(false);
@@ -27,7 +29,7 @@ export default function PatientCartPage() {
     const router = useRouter();
     const { user } = useUser();
     const { items: cart, removeFromCart, updateQuantity, clearCart } = useCart();
-    const { canCheckout, itemCount } = useCartValidation();
+    const { canCheckout, itemCount, hasCriticalStock, hasLowStock } = useCartValidation();
 
     useEffect(() => {
         setLoading(false);
@@ -39,12 +41,12 @@ export default function PatientCartPage() {
         setIsOrdering(true);
         try {
             const { orders: ordersRepo } = createRepositories(supabase);
-            
+
             const orderData = {
                 patient_id: user.id,
                 pharmacy_id: cart[0].pharmacy_id,
                 total_price: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                status: 'placed',
+                status: 'placed' as OrderStatus,
                 initiator_type: 'patient' as const,
             };
 
@@ -66,9 +68,9 @@ export default function PatientCartPage() {
                 if (!itemsError && orderItems) {
                     clearCart();
                     notifications.order.created();
-                    
+
                     await sendOrderNotificationToPharmacy(order, user.id, cart[0].pharmacy_id);
-                    
+
                     setTimeout(() => {
                         router.push('/patient/orders');
                     }, 2000);
@@ -77,13 +79,14 @@ export default function PatientCartPage() {
                 }
             }
         } catch (error) {
-            notifications.error('Failed to create order. Please try again.');
+            console.error('Order creation error:', error);
+            notifications.error(error instanceof Error ? error.message : 'Failed to create order. Please try again.');
         } finally {
             setIsOrdering(false);
         }
     };
 
-    const sendOrderNotificationToPharmacy = async (order: any, patientId: string, pharmacyId: string) => {
+    const sendOrderNotificationToPharmacy = async (order: Order, patientId: string, pharmacyId: string) => {
         const { messages: messagesRepo } = createRepositories(supabase);
         const orderItemsSummary = cart.map(item => `${item.name} (x${item.quantity})`).join(", ");
         const orderSummary = `New Order #${order.id.slice(0, 8)}: ${orderItemsSummary}\nTotal: ₹${order.total_price.toFixed(2)}`;
@@ -93,8 +96,7 @@ export default function PatientCartPage() {
             await messagesRepo.sendMessage({
                 sender_id: patientId,
                 receiver_id: pharmacyId,
-                content: messageContent,
-                order_id: order.id
+                content: messageContent
             });
         } catch (error) {
             console.error('Failed to send order notification:', error);
@@ -170,7 +172,7 @@ export default function PatientCartPage() {
                                                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[var(--primary-light)] to-[var(--surface-bg)] flex items-center justify-center text-[var(--primary)] font-bold text-xl">
                                                     {item.name.charAt(0)}
                                                 </div>
-                                                
+
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="font-semibold text-[var(--text-main)] truncate">
                                                         {item.name}
@@ -204,7 +206,7 @@ export default function PatientCartPage() {
                                                             <Plus className="w-4 h-4" />
                                                         </button>
                                                     </div>
-                                                    
+
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
@@ -221,6 +223,20 @@ export default function PatientCartPage() {
                             ))}
                         </AnimatePresence>
                     </div>
+
+                    {/* Warnings */}
+                    {(hasLowStock || hasCriticalStock) && (
+                        <Card className="border-[var(--warning)] bg-[var(--warning-bg)]/50 mb-6">
+                            <CardContent className="p-4 flex items-center gap-3">
+                                <AlertCircle className="w-5 h-5 text-[var(--warning)]" />
+                                <p className="text-sm text-[var(--text-main)]">
+                                    {hasCriticalStock
+                                        ? "Some items in your cart have very limited stock. Order soon to ensure availability."
+                                        : "Some items in your cart are running low on stock."}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Order Summary */}
                     <Card>

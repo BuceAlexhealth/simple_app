@@ -26,9 +26,11 @@ export const useInviteLink = () => {
       logger.error('useInviteLink', 'Failed to copy to clipboard:', error);
       return false;
     }
-  }, []);
+  }, [inviteLink]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setupInviteLink();
   }, [setupInviteLink]);
 

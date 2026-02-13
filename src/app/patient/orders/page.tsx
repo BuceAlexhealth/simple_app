@@ -32,14 +32,6 @@ export default function PatientOrdersPage() {
     const { orders, orderItems, loading } = useOrders({ role: 'patient' });
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-    useEffect(() => {
-        const hash = window.location.hash;
-        if (hash.startsWith('#order-')) {
-            const orderId = hash.replace('#order-', '');
-            setExpandedOrderId(orderId);
-        }
-    }, []);
-
     const toggleOrderExpansion = (orderId: string) => {
         const newExpandedId = expandedOrderId === orderId ? null : orderId;
         setExpandedOrderId(newExpandedId);

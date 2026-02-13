@@ -48,8 +48,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme') as ThemeMode | null;
       const initialMode = saved || 'system';
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMode(initialMode);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResolvedMode(resolveTheme(initialMode));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMounted(true);
     }
   }, []);

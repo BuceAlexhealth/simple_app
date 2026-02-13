@@ -1,5 +1,16 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { logStructuredError, ApiError } from "./error-handling";
+import {
+  Batch,
+  InventoryItem,
+  Order,
+  Profile,
+  OrderStatus,
+  InitiatorType,
+  BatchMovementType,
+  UserRole
+} from "@/types";
+import { SupabaseError } from "@/types/supabase";
 
 /**
  * Base repository class for database operations
@@ -14,30 +25,31 @@ export abstract class BaseRepository {
   /**
    * Handle database errors consistently
    */
-  protected handleError(error: any, operation: string, context: Record<string, any> = {}): never {
-    const errorMessage = error?.message || 'Unknown database error';
+  protected handleError(error: unknown, operation: string, context: Record<string, unknown> = {}): never {
+    const err = error as SupabaseError;
+    const errorMessage = err?.message || 'Unknown database error';
 
     // Log structured error
-    logStructuredError(error, {
+    logStructuredError(err, {
       operation,
       table: this.getTableName(),
       ...context
     });
 
     // Convert to appropriate API error
-    if (error?.code === 'PGRST116') {
+    if (err?.code === 'PGRST116') {
       throw new ApiError('Resource not found', 404, 'NOT_FOUND', context);
     }
 
-    if (error?.code?.startsWith('235')) {
+    if (err?.code?.startsWith('235')) {
       throw new ApiError('Invalid data provided', 400, 'VALIDATION_ERROR', context);
     }
 
-    if (error?.code?.startsWith('28')) {
+    if (err?.code?.startsWith('28')) {
       throw new ApiError('Authentication required', 401, 'AUTH_ERROR', context);
     }
 
-    if (error?.code?.startsWith('425')) {
+    if (err?.code?.startsWith('425')) {
       throw new ApiError('Insufficient permissions', 403, 'PERMISSION_ERROR', context);
     }
 
@@ -80,7 +92,7 @@ export class OrdersRepository extends BaseRepository {
   /**
    * Update order status
    */
-  async updateOrderStatus(orderId: string, status: string, additionalData: Record<string, any> = {}) {
+  async updateOrderStatus(orderId: string, status: OrderStatus, additionalData: Record<string, unknown> = {}): Promise<Order> {
     try {
       const { data, error } = await this.supabase
         .from("orders")
@@ -102,12 +114,12 @@ export class OrdersRepository extends BaseRepository {
   /**
    * Get orders for a specific user
    */
-  async getOrdersByUserId(userId: string, userRole: 'patient' | 'pharmacist' | 'admin' = 'patient', filters: {
-    initiatorType?: 'patient' | 'pharmacy';
-    status?: string;
+  async getOrdersByUserId(userId: string, userRole: UserRole = 'patient', filters: {
+    initiatorType?: InitiatorType;
+    status?: OrderStatus;
     limit?: number;
     offset?: number;
-  } = {}) {
+  } = {}): Promise<Order[]> {
     try {
       const idField = userRole === 'pharmacist' ? 'pharmacy_id' : 'patient_id';
 
@@ -153,7 +165,7 @@ export class OrdersRepository extends BaseRepository {
   /**
    * Create new order
    */
-  async createOrder(orderData: any) {
+  async createOrder(orderData: Partial<Order>): Promise<Order> {
     try {
       const { data, error } = await this.supabase
         .from("orders")
@@ -215,7 +227,6 @@ export class MessagesRepository extends BaseRepository {
     sender_id: string;
     receiver_id: string;
     content: string;
-    order_id?: string;
   }) {
     try {
       const { data, error } = await this.supabase
@@ -309,7 +320,7 @@ export class InventoryRepository extends BaseRepository {
     }
   }
 
-  async addItem(itemData: any) {
+  async addItem(itemData: Partial<InventoryItem>): Promise<InventoryItem> {
     try {
       const { data, error } = await this.supabase
         .from("inventory")
@@ -324,7 +335,7 @@ export class InventoryRepository extends BaseRepository {
     }
   }
 
-  async updateItem(itemId: string, itemData: any) {
+  async updateItem(itemId: string, itemData: Partial<InventoryItem>): Promise<InventoryItem> {
     try {
       const { data, error } = await this.supabase
         .from("inventory")
@@ -418,9 +429,7 @@ export class ConnectionsRepository extends BaseRepository {
   }
 }
 
-export type BatchMovementType = 'IN' | 'OUT' | 'ADJUST' | 'EXPIRED' | 'RETURN';
-
-interface ConsumeResult {
+export interface ConsumeResult {
   batch_id: string;
   batch_code: string;
   quantity: number;
@@ -431,7 +440,7 @@ export class BatchesRepository extends BaseRepository {
     return 'batches';
   }
 
-  async getBatchesByInventoryId(inventoryId: string) {
+  async getBatchesByInventoryId(inventoryId: string): Promise<Batch[]> {
     try {
       const { data, error } = await this.supabase
         .from("batches")
@@ -514,7 +523,7 @@ export class BatchesRepository extends BaseRepository {
     expiry_date: string;
     quantity: number;
     created_by?: string;
-  }) {
+  }): Promise<Batch> {
     try {
       const { data: batch, error } = await this.supabase
         .from("batches")
@@ -540,12 +549,12 @@ export class BatchesRepository extends BaseRepository {
       await this.logMovement(batch.id, 'IN', batchData.quantity, undefined, batchData.created_by);
 
       return batch;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleError(error, 'addBatch', batchData);
     }
   }
 
-  async addStockToBatch(batchId: string, quantity: number, userId?: string) {
+  async addStockToBatch(batchId: string, quantity: number, userId?: string): Promise<Batch> {
     try {
       const { data: current, error: fetchError } = await this.supabase
         .from("batches")
@@ -578,12 +587,7 @@ export class BatchesRepository extends BaseRepository {
     }
   }
 
-  async updateBatch(batchId: string, batchData: Partial<{
-    batch_code: string;
-    manufacturing_date: string;
-    expiry_date: string;
-    quantity: number;
-  }>) {
+  async updateBatch(batchId: string, batchData: Partial<Batch>): Promise<Batch> {
     try {
       const { data, error } = await this.supabase
         .from("batches")
@@ -713,7 +717,7 @@ export class BatchesRepository extends BaseRepository {
     }
   }
 
-  async getBatchById(batchId: string) {
+  async getBatchById(batchId: string): Promise<Batch & { inventory: Partial<InventoryItem> }> {
     try {
       const { data, error } = await this.supabase
         .from("batches")
@@ -756,7 +760,7 @@ export class ProfilesRepository extends BaseRepository {
     return 'profiles';
   }
 
-  async getProfile(userId: string) {
+  async getProfile(userId: string): Promise<Profile> {
     try {
       const { data, error } = await this.supabase
         .from("profiles")
@@ -771,7 +775,7 @@ export class ProfilesRepository extends BaseRepository {
     }
   }
 
-  async getProfilesByRole(roles: string[]) {
+  async getProfilesByRole(roles: UserRole[]): Promise<Profile[]> {
     try {
       const { data, error } = await this.supabase
         .from("profiles")
@@ -785,7 +789,7 @@ export class ProfilesRepository extends BaseRepository {
     }
   }
 
-  async updateProfile(userId: string, profileData: any) {
+  async updateProfile(userId: string, profileData: Partial<Profile>): Promise<Profile> {
     try {
       const { data, error } = await this.supabase
         .from("profiles")

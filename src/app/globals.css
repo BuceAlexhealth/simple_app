@@ -12,6 +12,12 @@
     /* Font Family */
     --font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
 
+    /* Font Weight Scale - Semantic */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
     /* ============================================
        LIGHT THEME - Backgrounds
        ============================================ */
@@ -85,12 +91,12 @@
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.16);
-    --shadow-primary: 0 4px 20px rgba(37, 99, 235, 0.15);
+    --shadow-primary: 0 4px 20px rgba(13, 148, 136, 0.15);
 
     /* ============================================
        LIGHT THEME - Gradients
        ============================================ */
-    --gradient-primary: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    --gradient-primary: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
     --gradient-surface: linear-gradient(135deg, #FAFBFC 0%, #F3F4F6 100%);
     --gradient-card: linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%);
 
@@ -176,10 +182,10 @@
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
     --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.55);
-    --shadow-primary: 0 4px 20px rgba(59, 130, 246, 0.25);
+    --shadow-primary: 0 4px 20px rgba(20, 184, 166, 0.25);
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    --gradient-primary: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
     --gradient-surface: linear-gradient(135deg, #0F0F14 0%, #1A1D29 100%);
     --gradient-card: linear-gradient(135deg, #23262F 0%, #2A2D3A 100%);
 
@@ -780,6 +786,12 @@
   .font-bold { font-weight: 700; }
   .font-extrabold { font-weight: 800; }
   .font-black { font-weight: 900; }
+
+  /* Semantic Font Weight - Use these for consistent typography */
+  .font-body { font-weight: var(--font-weight-normal); }
+  .font-label { font-weight: var(--font-weight-medium); }
+  .font-heading { font-weight: var(--font-weight-semibold); }
+  .font-emphasis { font-weight: var(--font-weight-bold); }
 
   /* Text Color Utilities */
   .text-primary { color: var(--primary); }

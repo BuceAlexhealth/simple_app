@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useAuth";
 import {
@@ -24,16 +24,30 @@ interface ChatInterfaceProps {
     role: 'patient' | 'pharmacy';
 }
 
+interface Connection {
+    id: string;
+    full_name?: string;
+}
+
+interface Message {
+    id: number | string;
+    sender_id: string;
+    receiver_id: string;
+    content: string;
+    image_url?: string;
+    created_at: string;
+}
+
 export default function ChatInterface({ role }: ChatInterfaceProps) {
     const { user: currentUser, loading: userLoading } = useUser();
     
     // Data State
-    const [connections, setConnections] = useState<any[]>([]);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [connections, setConnections] = useState<Connection[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
-    const [selectedConnection, setSelectedConnection] = useState<any>(null);
+    const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
     const [newMessage, setNewMessage] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [isMobile, setIsMobile] = useState(false);
@@ -43,8 +57,107 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Determines identifiers based on role
-    const myIdField = role === 'patient' ? 'patient_id' : 'pharmacy_id';
-    const otherIdField = role === 'patient' ? 'pharmacy_id' : 'patient_id';
+    const myIdField = useMemo(() => role === 'patient' ? 'patient_id' : 'pharmacy_id', [role]);
+    const otherIdField = useMemo(() => role === 'patient' ? 'pharmacy_id' : 'patient_id', [role]);
+
+    // Fetch connections
+    const fetchConnections = useCallback(async () => {
+        if (!currentUser) return;
+        
+        const { data } = await supabase
+            .from("connections")
+            .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
+            .eq(myIdField, currentUser.id);
+
+        if (data) {
+            const normalized = data.map((c: { profiles: Connection | Connection[] }) => {
+                const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+                return profile;
+            }).filter(Boolean);
+
+            const unique = Array.from(new Map(normalized.map((p: Connection) => [p.id, p])).values());
+            setConnections(unique);
+        }
+        setLoading(false);
+    }, [currentUser, myIdField, otherIdField]);
+
+    const fetchMessages = useCallback(async (otherId: string) => {
+        if (!currentUser) return;
+        
+        const { data } = await supabase
+            .from("messages")
+            .select("*")
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`)
+            .order("created_at", { ascending: true });
+
+        setMessages(data || []);
+    }, [currentUser]);
+
+    const subscribeToMessages = useCallback((otherId: string) => {
+        if (!currentUser) return () => {};
+        
+        const channel = supabase
+            .channel(`chat:${otherId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages' },
+                (payload: { new: Message }) => {
+                    if (
+                        (payload.new.sender_id === currentUser.id && payload.new.receiver_id === otherId) ||
+                        (payload.new.sender_id === otherId && payload.new.receiver_id === currentUser.id)
+                    ) {
+                        setMessages(prev => [...prev, payload.new]);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [currentUser]);
+
+    // Initial Load
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        
+        const initFetch = async () => {
+            if (!currentUser) return;
+            
+            const { data } = await supabase
+                .from("connections")
+                .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
+                .eq(myIdField, currentUser.id);
+
+            if (data) {
+                const normalized = data.map((c: { profiles: Connection | Connection[] }) => {
+                    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+                    return profile;
+                }).filter(Boolean);
+
+                const unique = Array.from(new Map(normalized.map((p: Connection) => [p.id, p])).values());
+                setConnections(unique);
+            }
+            setLoading(false);
+        };
+        
+        initFetch();
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [currentUser, myIdField, otherIdField]);
+
+    // Load Messages when connection selected
+    useEffect(() => {
+        if (selectedConnection) {
+            fetchMessages(selectedConnection.id);
+            const unsubscribe = subscribeToMessages(selectedConnection.id);
+            return () => { unsubscribe(); };
+        }
+    }, [selectedConnection, fetchMessages, subscribeToMessages]);
+
+    // Scroll to bottom
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
     // Show loading while UserContext is initializing
     if (userLoading) {
@@ -64,108 +177,11 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         );
     }
 
-    const fetchConnections = useCallback(async () => {
-        // Fetch connections where I am the "myIdField"
-        const { data, error } = await supabase
-            .from("connections")
-            .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-            .eq(myIdField, currentUser.id);
-
-        if (data) {
-            // Structure is slightly inconsistent in original files (array vs object) 
-            // but 'profiles' usually comes back as an object or array depending on relation type (one-to-one or one-to-many logic in supabase client)
-            // We normalize it here.
-            const normalized = data.map((c: any) => {
-                const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-                return profile;
-            }).filter(Boolean);
-
-            // Remove duplicates just in case
-            const unique = Array.from(new Map(normalized.map((p: any) => [p.id, p])).values());
-            setConnections(unique);
-        }
-        setLoading(false);
-    }, [currentUser.id, myIdField, otherIdField]);
-
-    const fetchMessages = useCallback(async (otherId: string) => {
-        const { data } = await supabase
-            .from("messages")
-            .select("*")
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`)
-            .order("created_at", { ascending: true });
-
-        setMessages(data || []);
-    }, [currentUser.id]);
-
-    const subscribeToMessages = useCallback((otherId: string) => {
-        const channel = supabase
-            .channel(`chat:${otherId}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages' },
-                (payload) => {
-                    if (
-                        (payload.new.sender_id === currentUser.id && payload.new.receiver_id === otherId) ||
-                        (payload.new.sender_id === otherId && payload.new.receiver_id === currentUser.id)
-                    ) {
-                        setMessages(prev => [...prev, payload.new]);
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [currentUser.id]);
-
-    // Initial Load
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        
-        // Direct fetch to avoid dependency issues
-        const initFetch = async () => {
-            // Fetch connections where I am the "myIdField"
-            const { data, error } = await supabase
-                .from("connections")
-                .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-                .eq(myIdField, currentUser.id);
-
-            if (data) {
-                const normalized = data.map((c: any) => {
-                    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-                    return profile;
-                }).filter(Boolean);
-
-                const unique = Array.from(new Map(normalized.map((p: any) => [p.id, p])).values());
-                setConnections(unique);
-            }
-            setLoading(false);
-        };
-        
-        initFetch();
-        return () => window.removeEventListener('resize', checkMobile);
-    }, [currentUser.id, myIdField, otherIdField]);
-
-    // Load Messages when connection selected
-    useEffect(() => {
-        if (selectedConnection) {
-            fetchMessages(selectedConnection.id);
-            const unsubscribe = subscribeToMessages(selectedConnection.id);
-            return () => { unsubscribe(); };
-        }
-    }, [selectedConnection, fetchMessages, subscribeToMessages]);
-
-    // Scroll to bottom
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || !e.target.files[0] || !currentUser) return;
 
         setIsUploading(true);

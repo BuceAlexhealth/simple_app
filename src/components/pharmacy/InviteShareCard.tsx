@@ -10,7 +10,7 @@ export function InviteShareCard() {
   const { inviteLink, copied, copyToClipboard } = useInviteLink();
 
   return (
-    <Card className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] border-none text-white shadow-lg">
+    <Card className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] border-none text-[var(--text-inverse)] shadow-lg">
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex-1 space-y-3">

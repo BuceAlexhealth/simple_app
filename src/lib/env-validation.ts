@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { logger } from "./logger";
+
 /**
  * Environment variable validation schema
  */
@@ -8,18 +9,26 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("Invalid Supabase URL"),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "Supabase anon key is required"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "Supabase service role is required").optional(),
+
   // Optional Environment Variables
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
   // Security Headers (optional)
   RATE_LIMIT_ENABLED: z.string().default("true").transform(val => val === "true"),
+
   // Logging (optional)
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
+
   // Monitoring (optional)
   SENTRY_DSN: z.string().url().optional(),
+
   // Feature Flags (optional)
   ENABLE_ANALYTICS: z.string().default("false").transform(val => val === "true"),
   ENABLE_PERFORMANCE_MONITORING: z.string().default("false").transform(val => val === "true")
 });
+
+type ValidatedEnv = z.infer<typeof envSchema>;
+
 /**
  * Validated environment variables
  */
@@ -35,23 +44,25 @@ export const env = (() => {
         NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
         NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dev-anon-key',
         SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'dev-service-key',
-        NODE_ENV: process.env.NODE_ENV || "development",
+        NODE_ENV: process.env.NODE_ENV || "development" as any,
         RATE_LIMIT_ENABLED: true,
-        LOG_LEVEL: "info",
+        LOG_LEVEL: "info" as any,
         SENTRY_DSN: undefined,
         ENABLE_ANALYTICS: false,
         ENABLE_PERFORMANCE_MONITORING: false
-      } as any;
+      } as ValidatedEnv;
     }
     throw error;
   }
 })();
+
 /**
  * Type-safe environment variable access
  */
-export function getEnvVar<T extends keyof typeof env>(key: T): typeof env[T] {
-  return (env as any)[key];
+export function getEnvVar<T extends keyof ValidatedEnv>(key: T): ValidatedEnv[T] {
+  return (env as ValidatedEnv)[key];
 }
+
 /**
  * Check if required environment variables are set
  */
@@ -60,15 +71,18 @@ export function validateRequiredEnvVars(): { valid: boolean; missing: string[] }
   const required = isBrowser
     ? ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
     : ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+
   const missing = required.filter(key => {
     const val = process.env[key];
     return !val || val.trim() === "";
   });
+
   return {
     valid: missing.length === 0,
     missing
   };
 }
+
 /**
  * Get environment-specific configuration
  */
