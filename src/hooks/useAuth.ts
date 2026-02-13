@@ -44,12 +44,8 @@ const fetchProfile = async (userId: string): Promise<Profile | null> => {
       .single();
 
     if (error) {
-      console.error('Profile fetch error:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error keys:', Object.keys(error || {}));
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      
-      // Return null so we fall back to user metadata
+      // Profile fetch failed (table may not exist or no profile row)
+      // Silently return null - app will fall back to user metadata
       return null;
     }
 

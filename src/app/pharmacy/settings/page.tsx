@@ -106,10 +106,10 @@ export default function PharmacySettingsPage() {
   // Show loading spinner while initializing
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
-          <p className="text-sm text-[var(--text-muted)]">Loading settings...</p>
+      <div className="settings-loading-container">
+        <div className="settings-loading-content">
+          <Loader2 className="settings-loading-spinner" />
+          <p className="settings-loading-text">Loading settings...</p>
         </div>
       </div>
     );
@@ -218,10 +218,10 @@ export default function PharmacySettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
-          <p className="text-sm text-[var(--text-muted)]">Loading settings...</p>
+      <div className="settings-loading-container">
+        <div className="settings-loading-content">
+          <Loader2 className="settings-loading-spinner" />
+          <p className="settings-loading-text">Loading settings...</p>
         </div>
       </div>
     );
@@ -231,34 +231,34 @@ export default function PharmacySettingsPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-5xl mx-auto space-y-6"
+      className="settings-container"
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="settings-header">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-main)]">Account Settings</h1>
-          <p className="text-[var(--text-muted)] mt-1">
+          <h1 className="settings-title">Account Settings</h1>
+          <p className="settings-subtitle">
             Manage your profile, pharmacy details, and preferences
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="settings-layout">
         {/* Sidebar Tabs */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-6">
-            <CardContent className="p-2">
-              <nav className="flex flex-col gap-1">
+        <div className="settings-sidebar">
+          <Card className="settings-tabs">
+            <CardContent>
+              <nav className="settings-tab-list">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
+                      className={`settings-tab-button ${
                         activeTab === tab.id
-                          ? "bg-[var(--primary)] text-white shadow-md"
-                          : "text-[var(--text-muted)] hover:bg-[var(--surface-bg)] hover:text-[var(--text-main)]"
+                          ? "settings-tab-active"
+                          : "settings-tab-inactive"
                       }`}
                     >
                       <Icon className="w-5 h-5" />
@@ -272,44 +272,44 @@ export default function PharmacySettingsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="settings-content">
           {/* Profile Tab */}
           {activeTab === "profile" && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
+              className="settings-section"
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="settings-card-title">
                     <User className="w-5 h-5 text-[var(--primary)]" />
                     Personal Information
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="settings-card-description">
                     Update your personal details and contact information
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="settings-card-content">
                   {/* Avatar */}
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-white text-2xl font-bold">
+                  <div className="settings-avatar-container">
+                    <div className="settings-avatar">
                       {profileData.full_name?.charAt(0)?.toUpperCase() || "P"}
                     </div>
-                    <div>
+                    <div className="settings-avatar-info">
                       <Button variant="outline" size="sm" className="gap-2">
                         <Camera className="w-4 h-4" />
                         Change Avatar
                       </Button>
-                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                      <p className="settings-avatar-hint">
                         JPG, PNG or GIF. Max size 2MB.
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                  <div className="settings-form-grid">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         Full Name
                       </label>
                       <Input
@@ -320,23 +320,23 @@ export default function PharmacySettingsPage() {
                         placeholder="Your full name"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         Email Address
                       </label>
                       <Input
                         type="email"
                         value={profileData.email}
                         disabled
-                        className="bg-[var(--surface-bg)]"
+                        className="settings-form-disabled"
                       />
-                      <p className="text-xs text-[var(--text-muted)]">
+                      <p className="settings-form-hint">
                         Contact support to change email
                       </p>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[var(--border)]">
+                  <div className="settings-form-divider">
                     <Button
                       onClick={handleSaveProfile}
                       disabled={saving}
@@ -360,22 +360,22 @@ export default function PharmacySettingsPage() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
+              className="settings-section"
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="settings-card-title">
                     <Store className="w-5 h-5 text-[var(--primary)]" />
                     Pharmacy Details
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="settings-card-description">
                     Information about your pharmacy that customers will see
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                <CardContent className="settings-card-content">
+                  <div className="settings-form-grid">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         Pharmacy Name
                       </label>
                       <Input
@@ -386,12 +386,10 @@ export default function PharmacySettingsPage() {
                         placeholder="e.g., City Care Pharmacy"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
-                        <span className="flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          Phone Number
-                        </span>
+                    <div className="settings-form-group">
+                      <label className="settings-form-label-with-icon">
+                        <Phone className="w-4 h-4" />
+                        Phone Number
                       </label>
                       <Input
                         value={profileData.phone}
@@ -403,12 +401,10 @@ export default function PharmacySettingsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[var(--text-muted)]">
-                      <span className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        Address
-                      </span>
+                  <div className="settings-form-group">
+                    <label className="settings-form-label-with-icon">
+                      <MapPin className="w-4 h-4" />
+                      Address
                     </label>
                     <Input
                       value={profileData.address}
@@ -419,12 +415,10 @@ export default function PharmacySettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[var(--text-muted)]">
-                      <span className="flex items-center gap-2">
-                        <Shield className="w-4 h-4" />
-                        License Number
-                      </span>
+                  <div className="settings-form-group">
+                    <label className="settings-form-label-with-icon">
+                      <Shield className="w-4 h-4" />
+                      License Number
                     </label>
                     <Input
                       value={profileData.license_number}
@@ -435,7 +429,7 @@ export default function PharmacySettingsPage() {
                     />
                   </div>
 
-                  <div className="pt-4 border-t border-[var(--border)]">
+                  <div className="settings-form-divider">
                     <Button
                       onClick={handleSaveProfile}
                       disabled={saving}
@@ -459,22 +453,22 @@ export default function PharmacySettingsPage() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
+              className="settings-section"
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="settings-card-title">
                     <Lock className="w-5 h-5 text-[var(--primary)]" />
                     Change Password
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="settings-card-description">
                     Update your password to keep your account secure
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="settings-card-content">
                   <div className="space-y-4 max-w-md">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         Current Password
                       </label>
                       <Input
@@ -486,8 +480,8 @@ export default function PharmacySettingsPage() {
                         placeholder="••••••••"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         New Password
                       </label>
                       <Input
@@ -499,8 +493,8 @@ export default function PharmacySettingsPage() {
                         placeholder="••••••••"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-[var(--text-muted)]">
+                    <div className="settings-form-group">
+                      <label className="settings-form-label">
                         Confirm New Password
                       </label>
                       <Input
@@ -532,21 +526,21 @@ export default function PharmacySettingsPage() {
               </Card>
 
               {/* Danger Zone */}
-              <Card className="border-red-200 dark:border-red-900">
+              <Card className="settings-danger-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600">
+                  <CardTitle className="settings-danger-title">
                     <AlertTriangle className="w-5 h-5" />
                     Danger Zone
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="settings-card-description">
                     Irreversible and destructive actions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <div className="settings-danger-content">
                     <div>
-                      <h4 className="font-semibold text-red-600">Delete Account</h4>
-                      <p className="text-sm text-red-600/80 mt-1">
+                      <h4 className="settings-danger-heading">Delete Account</h4>
+                      <p className="settings-danger-description">
                         Permanently delete your account and all associated data
                       </p>
                     </div>
@@ -569,26 +563,26 @@ export default function PharmacySettingsPage() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
+              className="settings-section"
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="settings-card-title">
                     <Bell className="w-5 h-5 text-[var(--primary)]" />
                     Notification Preferences
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="settings-card-description">
                     Choose how you want to be notified
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="settings-card-content">
                   <div className="space-y-4">
                     <h4 className="font-medium text-[var(--text-main)]">Email Notifications</h4>
                     
-                    <div className="flex items-center justify-between py-3 border-b border-[var(--border)]">
-                      <div>
-                        <p className="font-medium text-[var(--text-main)]">New Orders</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                    <div className="settings-notification-item py-3 border-b border-[var(--border)]">
+                      <div className="settings-notification-label">
+                        <p className="settings-notification-title">New Orders</p>
+                        <p className="settings-notification-description">
                           Receive email when a new order is placed
                         </p>
                       </div>
@@ -600,10 +594,10 @@ export default function PharmacySettingsPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-[var(--border)]">
-                      <div>
-                        <p className="font-medium text-[var(--text-main)]">Marketing & Updates</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                    <div className="settings-notification-item py-3 border-b border-[var(--border)]">
+                      <div className="settings-notification-label">
+                        <p className="settings-notification-title">Marketing & Updates</p>
+                        <p className="settings-notification-description">
                           Receive promotional emails and product updates
                         </p>
                       </div>
@@ -619,10 +613,10 @@ export default function PharmacySettingsPage() {
                   <div className="space-y-4">
                     <h4 className="font-medium text-[var(--text-main)]">Push Notifications</h4>
                     
-                    <div className="flex items-center justify-between py-3 border-b border-[var(--border)]">
-                      <div>
-                        <p className="font-medium text-[var(--text-main)]">Order Updates</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                    <div className="settings-notification-item py-3 border-b border-[var(--border)]">
+                      <div className="settings-notification-label">
+                        <p className="settings-notification-title">Order Updates</p>
+                        <p className="settings-notification-description">
                           Get notified about order status changes
                         </p>
                       </div>
@@ -634,10 +628,10 @@ export default function PharmacySettingsPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-[var(--border)]">
-                      <div>
-                        <p className="font-medium text-[var(--text-main)]">Low Stock Alerts</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                    <div className="settings-notification-item py-3 border-b border-[var(--border)]">
+                      <div className="settings-notification-label">
+                        <p className="settings-notification-title">Low Stock Alerts</p>
+                        <p className="settings-notification-description">
                           Get notified when inventory items are running low
                         </p>
                       </div>
@@ -653,10 +647,10 @@ export default function PharmacySettingsPage() {
                   <div className="space-y-4">
                     <h4 className="font-medium text-[var(--text-main)]">SMS Notifications</h4>
                     
-                    <div className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="font-medium text-[var(--text-main)]">Critical Alerts</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                    <div className="settings-notification-item py-3">
+                      <div className="settings-notification-label">
+                        <p className="settings-notification-title">Critical Alerts</p>
+                        <p className="settings-notification-description">
                           Receive SMS for urgent pharmacy alerts
                         </p>
                       </div>
@@ -669,7 +663,7 @@ export default function PharmacySettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[var(--border)]">
+                  <div className="settings-form-divider">
                     <Button
                       onClick={() => toast.success("Notification preferences saved")}
                       disabled={saving}

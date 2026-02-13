@@ -72,17 +72,17 @@ export function OrderCard({
       animate={{ opacity: 1, y: 0 }}
       id={`order-${order.id}`}
     >
-      <Card className={`border-l-4 ${
-        order.status === 'complete' ? 'border-l-emerald-500' :
-        order.status === 'ready' ? 'border-l-[var(--primary)]' :
-        'border-l-amber-500'
+      <Card className={`card-border-left ${
+        order.status === 'complete' ? 'card-border-success' :
+        order.status === 'ready' ? 'card-border-primary' :
+        'card-border-warning'
       }`}>
         <CardContent className="p-5">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono bg-[var(--surface-bg)] text-[var(--text-muted)] px-2 py-0.5 rounded">
+                <span className="text-mono-sm bg-[var(--surface-bg)] text-muted px-2 py-0.5 rounded">
                   #{order.id.slice(0, 8)}
                 </span>
                 <Badge variant={getBadgeVariant(order.status, order.initiator_type)} className="text-xs">
@@ -91,18 +91,18 @@ export function OrderCard({
                 </Badge>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-[var(--text-main)]">
+                <span className="text-price text-2xl">
                   ₹{order.total_price.toFixed(2)}
                 </span>
-                <span className="text-sm text-[var(--text-muted)]">Total</span>
+                <span className="text-caption">Total</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 bg-[var(--surface-bg)] px-3 py-2 rounded-lg">
               <Clock className="w-4 h-4 text-[var(--text-muted)]" />
               <div>
-                <p className="text-xs text-[var(--text-muted)]">Received</p>
-                <p className="text-sm font-medium text-[var(--text-main)]">
+                <p className="text-caption">Received</p>
+                <p className="text-sm font-medium text-main">
                   {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -120,7 +120,7 @@ export function OrderCard({
               >
                 <div className="mb-4 p-4 bg-[var(--surface-bg)] rounded-xl border border-[var(--border)]">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-[var(--text-main)] text-sm flex items-center gap-2">
+                    <h4 className="heading-sm text-main flex items-center gap-2">
                       <Package className="w-4 h-4 text-[var(--primary)]" />
                       Ordered Items
                     </h4>
@@ -139,16 +139,16 @@ export function OrderCard({
                         className="flex items-center justify-between text-sm p-2 bg-[var(--card-bg)] rounded-lg border border-[var(--border)]"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)] text-xs font-semibold">
+                          <div className="w-6 h-6 rounded bg-[var(--primary-light)] flex items-center justify-center text-primary text-badge font-semibold">
                             {index + 1}
                           </div>
-                          <span className="font-medium text-[var(--text-main)]">
+                          <span className="font-medium text-main text-truncate">
                             {item.inventory?.name || `Product #${index + 1}`}
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-xs text-[var(--text-muted)]">Qty: {item.quantity}</span>
-                          <span className="text-sm font-semibold text-[var(--text-main)] min-w-[60px] text-right">
+                          <span className="text-caption">Qty: {item.quantity}</span>
+                          <span className="text-price-sm min-w-[60px] text-right">
                             ₹{(item.price_at_time * item.quantity).toFixed(2)}
                           </span>
                         </div>
@@ -157,8 +157,8 @@ export function OrderCard({
                     
                     <div className="pt-3 mt-2 border-t border-[var(--border)]">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-[var(--text-muted)]">Subtotal</span>
-                        <span className="text-lg font-bold text-[var(--text-main)]">
+                        <span className="text-caption">Subtotal</span>
+                        <span className="text-price text-lg">
                           ₹{order.total_price.toFixed(2)}
                         </span>
                       </div>
@@ -182,7 +182,7 @@ export function OrderCard({
             </Button>
 
             {order.initiator_type === 'pharmacy' && order.status === 'placed' && (
-              <div className="flex-1 flex items-center justify-center bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-sm">
+              <div className="flex-1 flex items-center justify-center bg-warning-light text-warning-dark px-3 py-1.5 rounded-lg text-sm">
                 <AlertCircle className="w-4 h-4 mr-1.5" />
                 Waiting for Customer
               </div>
@@ -199,16 +199,16 @@ export function OrderCard({
                 </Button>
               )}
               
-              {order.status === 'ready' && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => onUpdateStatus(order.id, 'complete')}
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                  Complete
-                </Button>
-              )}
+                {order.status === 'ready' && (
+                  <Button
+                    size="sm"
+                    className="bg-[var(--success-600)] hover:bg-[var(--success-500)]"
+                    onClick={() => onUpdateStatus(order.id, 'complete')}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    Complete
+                  </Button>
+                )}
               
               <Link href="/pharmacy/chats">
                 <Button variant="outline" size="sm">

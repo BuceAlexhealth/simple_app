@@ -163,8 +163,8 @@ export const format = {
   /**
    * Format currency with proper decimal places
    */
-  currency: (amount: number, currency = 'USD'): string => {
-    return new Intl.NumberFormat('en-US', {
+  currency: (amount: number, currency = 'INR'): string => {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency,
     }).format(amount);

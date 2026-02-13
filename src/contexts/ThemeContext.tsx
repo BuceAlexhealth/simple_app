@@ -37,10 +37,12 @@ const lightColors: Record<string, string> = {
   // Accent colors
   '--success': '#059669',
   '--success-bg': '#ECFDF5',
+  '--success-dark': '#047857',
   '--warning': '#D97706',
   '--warning-bg': '#FFFBEB',
   '--error': '#DC2626',
   '--error-bg': '#FEF2F2',
+  '--error-dark': '#B91C1C',
   '--info': '#0891B2',
   '--info-bg': '#F0F9FF',
 
@@ -101,10 +103,12 @@ const darkColors: Record<string, string> = {
   // Accent colors - dark mode optimized
   '--success': '#10B981',
   '--success-bg': 'rgba(16, 185, 129, 0.1)',
+  '--success-dark': '#34D399',
   '--warning': '#F59E0B',
   '--warning-bg': 'rgba(245, 158, 11, 0.1)',
   '--error': '#EF4444',
   '--error-bg': 'rgba(239, 68, 68, 0.1)',
+  '--error-dark': '#F87171',
   '--info': '#06B6D4',
   '--info-bg': 'rgba(6, 182, 212, 0.1)',
 

@@ -131,10 +131,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
 
     case 'LOAD_CART': {
+      const loadedPharmacyId = action.payload.pharmacyId || 
+        (action.payload.items.length > 0 ? action.payload.items[0].pharmacy_id : null);
       return {
         ...state,
         items: action.payload.items,
-        pharmacyId: action.payload.pharmacyId,
+        pharmacyId: loadedPharmacyId,
       };
     }
 
@@ -219,6 +221,14 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
       return;
     }
 
+    // Auto-set pharmacyId when first item is added or if pharmacyId not set
+    if (!state.pharmacyId && item.pharmacy_id) {
+      dispatch({
+        type: 'SET_PHARMACY',
+        payload: { pharmacyId: item.pharmacy_id },
+      });
+    }
+
     dispatch({
       type: 'ADD_ITEM',
       payload: { item, quantity },
@@ -227,7 +237,7 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
     if (existingQuantity === 0) {
       notifications.cart.updated();
     }
-  }, [state.items]);
+  }, [state.items, state.pharmacyId]);
 
   const removeFromCart = useCallback((itemId: string) => {
     dispatch({

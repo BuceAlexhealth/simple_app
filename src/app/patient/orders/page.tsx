@@ -102,14 +102,14 @@ export default function PatientOrdersPage() {
             className="max-w-4xl mx-auto space-y-6"
         >
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <Package className="w-5 h-5 text-[var(--primary)]" />
-                        <span className="text-sm font-medium text-[var(--primary)]">Order History</span>
+            <div className="page-header">
+                <div className="page-header-title">
+                    <div className="page-header-breadcrumb">
+                        <Package className="page-header-icon" />
+                        <span className="page-header-label">Order History</span>
                     </div>
-                    <h1 className="text-3xl font-bold text-[var(--text-main)]">My Orders</h1>
-                    <p className="text-[var(--text-muted)] mt-1">
+                    <h1 className="page-header-main">My Orders</h1>
+                    <p className="page-header-subtitle">
                         Track and manage your medical orders
                     </p>
                 </div>
@@ -124,9 +124,9 @@ export default function PatientOrdersPage() {
 
             {/* Orders List */}
             {loading && orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
-                    <p className="text-sm text-[var(--text-muted)]">Loading orders...</p>
+                <div className="loading-container">
+                    <Loader2 className="loading-spinner" />
+                    <p className="loading-text">Loading orders...</p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -145,13 +145,13 @@ export default function PatientOrdersPage() {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     id={`order-${order.id}`}
                                 >
-                                    <Card className={`overflow-hidden transition-all ${isExpanded ? 'ring-2 ring-[var(--primary)]' : ''}`}>
+                                    <Card className={`overflow-hidden transition-all ${isExpanded ? 'order-card-expanded' : ''}`}>
                                         <CardContent className="p-5">
                                             {/* Order Header */}
-                                            <div className="flex justify-between items-start mb-4">
+                                            <div className="order-header">
                                                 <div>
-                                                    <p className="text-xs text-[var(--text-muted)] mb-1">Order ID</p>
-                                                    <p className="font-mono text-sm text-[var(--text-main)]">
+                                                    <p className="order-id-label">Order ID</p>
+                                                    <p className="order-id-badge">
                                                         #{order.id.slice(0, 12)}
                                                     </p>
                                                 </div>
@@ -162,11 +162,11 @@ export default function PatientOrdersPage() {
                                             </div>
 
                                             {/* Status Message */}
-                                            <div className="flex items-start gap-3 p-3 bg-[var(--surface-bg)] rounded-lg mb-4">
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                            <div className="order-status-message">
+                                                <div className={`order-status-indicator ${
                                                     order.status === 'ready' 
-                                                        ? 'bg-[var(--primary-light)] text-[var(--primary)]' 
-                                                        : 'bg-[var(--border)] text-[var(--text-muted)]'
+                                                        ? 'order-status-ready' 
+                                                        : 'order-status-default'
                                                 }`}>
                                                     <ShoppingBag className="w-5 h-5" />
                                                 </div>
@@ -189,7 +189,7 @@ export default function PatientOrdersPage() {
                                                         exit={{ height: 0, opacity: 0 }}
                                                         className="overflow-hidden"
                                                     >
-                                                        <div className="p-4 bg-[var(--surface-bg)] rounded-lg border border-[var(--border)] mb-4">
+                                                        <div className="order-details-section">
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <h4 className="font-medium text-[var(--text-main)] text-sm">Order Details</h4>
                                                                 <button
@@ -201,21 +201,21 @@ export default function PatientOrdersPage() {
                                                             </div>
                                                             <div className="space-y-2">
                                                                 {items.map((item: OrderItem, index: number) => (
-                                                                    <div key={item.id} className="flex items-center justify-between text-sm p-2 bg-[var(--card-bg)] rounded-lg border border-[var(--border)]">
-                                                                        <span className="font-medium text-[var(--text-main)]">
+                                                                    <div key={item.id} className="order-item-row">
+                                                                        <span className="order-item-name">
                                                                             {item.inventory?.name || `Item ${index + 1}`}
                                                                         </span>
                                                                         <div className="flex items-center gap-4">
-                                                                            <span className="text-xs text-[var(--text-muted)]">Qty: {item.quantity}</span>
-                                                                            <span className="font-semibold text-[var(--text-main)]">
+                                                                            <span className="order-item-quantity">Qty: {item.quantity}</span>
+                                                                            <span className="order-item-price">
                                                                                 ₹{(item.price_at_time * item.quantity).toFixed(2)}
                                                                             </span>
                                                                         </div>
                                                                     </div>
                                                                 ))}
-                                                                <div className="pt-3 border-t border-[var(--border)]">
+                                                                <div className="order-totals">
                                                                     <div className="flex items-center justify-between">
-                                                                        <span className="text-sm text-[var(--text-muted)]">Total</span>
+                                                                        <span className="order-total-label">Total</span>
                                                                         <span className="text-lg font-bold text-[var(--text-main)]">
                                                                             ₹{order.total_price.toFixed(2)}
                                                                         </span>
@@ -228,10 +228,10 @@ export default function PatientOrdersPage() {
                                             </AnimatePresence>
 
                                             {/* Order Footer */}
-                                            <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+                                            <div className="order-footer">
                                                 <div>
-                                                    <p className="text-xs text-[var(--text-muted)]">Order Total</p>
-                                                    <p className="text-xl font-bold text-[var(--text-main)]">
+                                                    <p className="order-total-label">Order Total</p>
+                                                    <p className="order-total-amount">
                                                         ₹{order.total_price.toFixed(2)}
                                                     </p>
                                                 </div>
@@ -261,15 +261,15 @@ export default function PatientOrdersPage() {
                     </AnimatePresence>
 
                     {orders.length === 0 && (
-                        <Card className="border-dashed">
-                            <CardContent className="p-12 flex flex-col items-center justify-center text-center">
-                                <div className="w-16 h-16 bg-[var(--surface-bg)] rounded-2xl flex items-center justify-center mb-4">
-                                    <ShoppingBag className="w-8 h-8 text-[var(--text-muted)]" />
+                        <Card className="empty-state-card">
+                            <CardContent className="empty-state-container">
+                                <div className="empty-state-icon-large">
+                                    <ShoppingBag className="empty-state-icon-large-icon" />
                                 </div>
-                                <h3 className="text-xl font-semibold text-[var(--text-main)] mb-2">
+                                <h3 className="empty-state-title">
                                     Your order history is empty
                                 </h3>
-                                <p className="text-[var(--text-muted)] max-w-sm mb-6">
+                                <p className="empty-state-description">
                                     Medications you order will appear here.
                                 </p>
                                 <Link href="/patient">

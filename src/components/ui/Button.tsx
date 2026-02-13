@@ -18,16 +18,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = "default", size = "default", asChild = false, isLoading = false, children, disabled, ...props }, ref) => {
         const Comp = asChild ? Slot : "button";
 
-        const baseStyles = "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+        const baseStyles = "btn-premium";
 
-const variants = {
-            default: "bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] shadow-sm",
-            destructive: "bg-[var(--error)] hover:bg-[var(--error)] text-white",
-            outline: "border-[var(--border)] bg-transparent hover:bg-[var(--surface-bg)] text-[var(--text-main)]",
-            secondary: "bg-[var(--surface-bg)] text-[var(--text-main)] border-[var(--border)] hover:bg-[var(--border-light)]",
-            ghost: "bg-transparent text-[var(--primary)] hover:bg-[var(--primary-light)]",
+        const variants = {
+            default: "",
+            destructive: "btn-premium-destructive",
+            outline: "btn-premium-secondary",
+            secondary: "btn-premium-secondary",
+            ghost: "btn-premium-ghost",
             link: "text-[var(--primary)] underline-offset-4 hover:underline font-medium bg-transparent hover:bg-transparent p-0 h-auto min-w-0 shadow-none border-none",
-            gradient: "bg-[var(--gradient-primary)] text-white hover:bg-[var(--primary-dark)]",
+            gradient: "btn-premium",
         };
 
         const sizes = {
@@ -41,7 +41,7 @@ const variants = {
             <Comp
                 className={cn(
                     baseStyles,
-                    variant === 'default' ? '' : variants[variant],
+                    variants[variant],
                     size === 'default' ? '' : sizes[size],
                     className
                 )}
