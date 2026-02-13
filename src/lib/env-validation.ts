@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "./logger";
 /**
  * Environment variable validation schema
  */
@@ -29,7 +30,7 @@ export const env = (() => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessage = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      console.warn(`⚠️ Environment validation issue: ${errorMessage}`);
+      logger.warn('env-validation', `Environment validation issue: ${errorMessage}`);
       return {
         NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
         NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dev-anon-key',

@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useAuth";
+import { logger } from "@/lib/logger";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface Pharmacy {
   id: string;
@@ -21,25 +23,23 @@ interface PharmaciesResponse {
 }
 
 const fetchPharmacies = async (userId: string): Promise<PharmaciesResponse> => {
-  // Fetch all pharmacists/pharmacies
   const { data: pharmaData, error: pharmaError } = await supabase
     .from("profiles")
     .select("id, full_name, role")
     .in("role", ["pharmacist", "pharmacy"]);
 
   if (pharmaError) {
-    console.error("Error fetching pharmacies:", pharmaError);
+    logger.error('usePharmacies', 'Error fetching pharmacies:', pharmaError);
     throw new Error("Failed to load pharmacies");
   }
 
-  // Fetch user's connections
   const { data: connData, error: connError } = await supabase
     .from("connections")
     .select("pharmacy_id, profiles:pharmacy_id(id, full_name, role)")
     .eq("patient_id", userId);
 
   if (connError) {
-    console.error("Error fetching connections:", connError);
+    logger.error('usePharmacies', 'Error fetching connections:', connError);
     throw new Error("Failed to load connections");
   }
 
@@ -65,15 +65,15 @@ export const usePharmacies = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['pharmacies', user?.id],
+    queryKey: queryKeys.pharmacies(user?.id),
     queryFn: () => {
       if (!user?.id) throw new Error("User not authenticated");
       return fetchPharmacies(user.id);
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
   return {

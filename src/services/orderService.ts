@@ -5,6 +5,7 @@
 
 import { REGEX_PATTERNS } from '@/config/constants';
 import { ORDER_STATUS_CONFIG } from '@/lib/order-status';
+import { logger } from '@/lib/logger';
 import type { OrderStatus, InitiatorType } from '@/types';
 
 export interface ParsedOrderData {
@@ -224,19 +225,18 @@ export class OrderProcessingService {
     orderId: string, 
     newStatus: OrderStatus, 
     userRole: 'patient' | 'pharmacy'
-  ): Promise<boolean> {
+    ): Promise<boolean> {
     try {
-      // This would integrate with your existing order service
-      console.log(`Updating order ${orderId} to ${newStatus} by ${userRole}`);
+      logger.info('OrderProcessingService', `Updating order ${orderId} to ${newStatus} by ${userRole}`);
       
-      // For now, just return success
+      // TODO: Implement actual order status update
       // In real implementation, you'd call:
       // const { orders } = createRepositories(supabase);
       // await orders.updateOrderStatus(orderId, newStatus);
       
       return Promise.resolve(true);
     } catch (error) {
-      console.error('Failed to update order status:', error);
+      logger.error('OrderProcessingService', 'Failed to update order status', error);
       return false;
     }
   }
@@ -247,8 +247,9 @@ export class OrderProcessingService {
     recipientId: string
   ): Promise<boolean> {
     try {
-      console.log(`Sending notification for order ${orderId}: ${message}`);
+      logger.info('OrderProcessingService', `Sending notification for order ${orderId}: ${message}`);
       
+      // TODO: Implement actual notification sending
       // In real implementation, you'd call:
       // const { messages } = createRepositories(supabase);
       // await messages.sendMessage({
@@ -260,7 +261,7 @@ export class OrderProcessingService {
       
       return Promise.resolve(true);
     } catch (error) {
-      console.error('Failed to send order notification:', error);
+      logger.error('OrderProcessingService', 'Failed to send order notification', error);
       return false;
     }
   }

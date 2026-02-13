@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Edit2, Trash2, X } from "lucide-react";
+import { Package, Edit2, Trash2, X, Layers } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -29,6 +29,9 @@ interface InventoryItemCardProps {
     onEditCancel: () => void;
     onUpdate: (id: string, data: InventoryItemInput) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onManageBatches?: (itemId: string) => void;
+    batchCount?: number;
+    totalStock?: number;
 }
 
 function InventoryItemCardBase({
@@ -37,7 +40,10 @@ function InventoryItemCardBase({
     onEditStart,
     onEditCancel,
     onUpdate,
-    onDelete
+    onDelete,
+    onManageBatches,
+    batchCount = 0,
+    totalStock
 }: InventoryItemCardProps) {
     const [editForm, setEditForm] = useState<InventoryItemInput>({
         name: item.name,
@@ -97,20 +103,20 @@ function InventoryItemCardBase({
                     <div className="md:col-span-2 space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-muted)]">Product Name</label>
                         <Input
-                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.name ? 'border-red-500' : ''}`}
+                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.name ? 'border-[var(--error)]' : ''}`}
                             value={editForm.name}
                             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         />
-                        {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+                        {errors.name && <p className="text-xs text-[var(--error)]">{errors.name}</p>}
                     </div>
                     <div className="md:col-span-2 space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-muted)]">Brand Name</label>
                         <Input
-                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.brand_name ? 'border-red-500' : ''}`}
+                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.brand_name ? 'border-[var(--error)]' : ''}`}
                             value={editForm.brand_name || ""}
                             onChange={(e) => setEditForm({ ...editForm, brand_name: e.target.value })}
                         />
-                        {errors.brand_name && <p className="text-xs text-red-500">{errors.brand_name}</p>}
+                        {errors.brand_name && <p className="text-xs text-[var(--error)]">{errors.brand_name}</p>}
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-muted)]">Form</label>
@@ -118,7 +124,7 @@ function InventoryItemCardBase({
                             value={editForm.form || ""}
                             onChange={(value) => setEditForm({ ...editForm, form: value })}
                         >
-                            <SelectTrigger className={`h-10 bg-[var(--surface-bg)]/50 text-sm ${errors.form ? 'border-red-500' : ''}`} placeholder="Select Form" />
+                            <SelectTrigger className={`h-10 bg-[var(--surface-bg)]/50 text-sm ${errors.form ? 'border-[var(--error)]' : ''}`} placeholder="Select Form" />
                             <SelectContent>
                                 <SelectItem value="Tablet">Tablet</SelectItem>
                                 <SelectItem value="Capsule">Capsule</SelectItem>
@@ -133,27 +139,28 @@ function InventoryItemCardBase({
                                 <SelectItem value="Other">Other</SelectItem>
                             </SelectContent>
                         </Select>
-                        {errors.form && <p className="text-xs text-red-500">{errors.form}</p>}
+                        {errors.form && <p className="text-xs text-[var(--error)]">{errors.form}</p>}
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-muted)]">Price (₹)</label>
                         <Input
                             type="number"
-                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.price ? 'border-red-500' : ''}`}
+                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.price ? 'border-[var(--error)]' : ''}`}
                             value={editForm.price}
                             onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || 0 })}
                         />
-                        {errors.price && <p className="text-xs text-red-500">{errors.price}</p>}
+                        {errors.price && <p className="text-xs text-[var(--error)]">{errors.price}</p>}
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-xs font-medium text-[var(--text-muted)]">Stock</label>
                         <Input
                             type="number"
-                            className={`h-10 text-sm font-medium bg-[var(--surface-bg)]/50 ${errors.stock ? 'border-red-500' : ''}`}
-                            value={editForm.stock}
-                            onChange={(e) => setEditForm({ ...editForm, stock: parseInt(e.target.value) || 0 })}
+                            className="h-10 text-sm font-medium bg-[var(--surface-bg)]/50 text-[var(--text-muted)] cursor-not-allowed"
+                            value={totalStock ?? editForm.stock}
+                            disabled
+                            title="Stock is managed via Batches"
                         />
-                        {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+                        <p className="text-[10px] text-[var(--text-muted)]">Managed via Batches</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3">
@@ -179,21 +186,21 @@ function InventoryItemCardBase({
                     <Package className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[var(--text-main)] text-base md:text-lg leading-tight group-hover:text-[var(--primary)] transition-colors">
+                    <h3 className="font-semibold text-[var(--text-main)] text-base md:text-lg leading-tight group-hover:text-[var(--primary)] transition-colors break-words line-clamp-2" title={item.name}>
                         {item.name}
                     </h3>
                     {(item.brand_name || item.form) && (
-                        <p className="text-sm text-[var(--text-muted)] mt-0.5">
-                            {item.brand_name && <span className="font-medium">{item.brand_name}</span>}
-                            {item.brand_name && item.form && <span className="mx-2 text-[var(--border)]">|</span>}
-                            {item.form && <span className="text-xs uppercase tracking-wide bg-[var(--surface-bg)] px-2 py-0.5 rounded-md">{item.form}</span>}
+                        <p className="text-sm text-[var(--text-muted)] mt-0.5 flex items-center gap-2 flex-wrap">
+                            {item.brand_name && <span className="font-medium truncate max-w-[150px]">{item.brand_name}</span>}
+                            {item.brand_name && item.form && <span className="text-[var(--border)]">|</span>}
+                            {item.form && <span className="text-xs uppercase tracking-wide bg-[var(--surface-bg)] px-2 py-0.5 rounded-md flex-shrink-0">{item.form}</span>}
                         </p>
                     )}
                 </div>
             </div>
 
             {/* Price & Stock */}
-            <div className="flex flex-row items-center justify-between lg:justify-start gap-6 lg:gap-8 px-2 lg:px-6 lg:border-x border-[var(--border)] flex-shrink-0">
+            <div className="flex flex-row items-center justify-between lg:justify-start gap-4 lg:gap-6 lg:px-6 lg:border-x border-[var(--border)] flex-shrink-0">
                 <div className="text-left">
                     <p className="text-xs text-[var(--text-muted)] mb-0.5">Price</p>
                     <p className="text-lg md:text-xl font-bold text-[var(--text-main)]">₹{item.price.toFixed(2)}</p>
@@ -201,16 +208,33 @@ function InventoryItemCardBase({
                 <div className="text-right lg:text-left min-w-[90px]">
                     <p className="text-xs text-[var(--text-muted)] mb-0.5">Stock</p>
                     <Badge
-                        variant={item.stock > 10 ? 'success' : item.stock > 0 ? 'warning' : 'destructive'}
+                        variant={(totalStock ?? item.stock) > 10 ? 'success' : (totalStock ?? item.stock) > 0 ? 'warning' : 'destructive'}
                         className="font-semibold text-xs px-2.5 py-1"
                     >
-                        {item.stock} units
+                        {totalStock ?? item.stock} units
                     </Badge>
+                    {batchCount > 0 && (
+                        <p className="text-xs text-[var(--text-muted)] mt-1 flex items-center justify-end lg:justify-start gap-1">
+                            <Layers className="w-3 h-3" />
+                            {batchCount} batch{batchCount !== 1 ? 'es' : ''}
+                        </p>
+                    )}
                 </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-1 flex-shrink-0">
+                {onManageBatches && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onManageBatches(item.id)}
+                        className="h-9 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] transition-colors gap-1"
+                    >
+                        <Layers className="w-4 h-4" />
+                        <span className="hidden sm:inline">Batches</span>
+                    </Button>
+                )}
                 <Button
                     variant="ghost"
                     size="icon"
@@ -223,7 +247,7 @@ function InventoryItemCardBase({
                     variant="ghost"
                     size="icon"
                     onClick={() => onDelete(item.id)}
-                    className="h-9 w-9 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="h-9 w-9 rounded-lg text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
                 >
                     <Trash2 className="w-4 h-4" />
                 </Button>

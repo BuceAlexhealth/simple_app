@@ -125,42 +125,38 @@ export default function CreateOrderPage() {
         try {
             const { orders, messages } = createRepositories(supabase);
 
-            // Create the order
-            const orderData = {
-                patient_id: selectedPatient.id,
-                pharmacy_id: user.id,
-                total_price: calculateTotal(),
-                status: 'placed',
-                initiator_type: 'pharmacy',
-                pharmacy_notes: pharmacyNotes || null
-            };
-
-            const order = await orders.createOrder(orderData);
-
-            if (!order) throw new Error("Failed to create order");
-
-            // Create order items (direct insert for now as it's a bulk operation)
-            const itemsToInsert = cart.map(item => ({
-                order_id: order.id,
+            // Structure items for RPC
+            const orderItems = cart.map(item => ({
                 inventory_id: item.id,
-                quantity: 1,
-                price_at_time: item.price
+                quantity: 1, // Currently only supporting 1 unit per item in UI
+                price: item.price
             }));
 
-            const { error: itemsError } = await supabase
-                .from("order_items")
-                .insert(itemsToInsert);
+            // Calculate total
+            const totalAmount = calculateTotal();
 
-            if (itemsError) throw itemsError;
+            // Process order via RPC (Atomic operation)
+            const orderId = await handleAsyncError(
+                () => orders.processPharmacyOrder({
+                    pharmacy_id: user.id,
+                    patient_id: selectedPatient.id,
+                    items: orderItems,
+                    total_price: totalAmount,
+                    notes: pharmacyNotes || undefined
+                }),
+                "Failed to process order"
+            );
+
+            if (!orderId) throw new Error("Order creation failed");
 
             // Send chat message to patient
-            const orderMessage = `PHARMACY_ORDER_REQUEST\nORDER_ID:${order.id}\nPATIENT:${selectedPatient.full_name}\nTOTAL:₹${calculateTotal().toFixed(2)}\nITEMS:${cart.map(item => item.name).join(', ')}\nNOTES:${pharmacyNotes || 'None'}\nSTATUS:Pending Acceptance`;
+            const orderMessage = `PHARMACY_ORDER_REQUEST\nORDER_ID:${orderId}\nPATIENT:${selectedPatient.full_name}\nTOTAL:₹${totalAmount.toFixed(2)}\nITEMS:${cart.map(item => item.name).join(', ')}\nNOTES:${pharmacyNotes || 'None'}\nSTATUS:Pending Acceptance`;
 
             await messages.sendMessage({
                 sender_id: user.id,
                 receiver_id: selectedPatient.id,
                 content: orderMessage,
-                order_id: order.id
+                order_id: orderId
             });
 
             toast.success("Order sent to patient for acceptance");
@@ -168,7 +164,7 @@ export default function CreateOrderPage() {
 
         } catch (error) {
             console.error("Error creating order:", error);
-            toast.error("Failed to create order: " + getErrorMessage(error));
+            // Error handling is mostly done by handleAsyncError but we catch any escaped ones
         } finally {
             setIsSubmitting(false);
         }
@@ -177,7 +173,7 @@ export default function CreateOrderPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader className="w-8 h-8 animate-spin text-slate-400" />
+                <Loader className="w-8 h-8 animate-spin text-[var(--text-light)]" />
             </div>
         );
     }
@@ -208,9 +204,9 @@ export default function CreateOrderPage() {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white/50 backdrop-blur-sm border border-[var(--border)] p-4 rounded-2xl flex items-center gap-4 shadow-sm"
+                            className="bg-[var(--card-bg)]/50 backdrop-blur-sm border border-[var(--border)] p-4 rounded-2xl flex items-center gap-4 shadow-sm"
                         >
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-white font-black shadow-lg">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-[var(--text-inverse)] font-black shadow-lg">
                                 {selectedPatient.full_name[0]}
                             </div>
                             <div>
@@ -232,8 +228,8 @@ export default function CreateOrderPage() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                         >
-                            <Card className="overflow-hidden border-2 border-[var(--border)] bg-white/50 backdrop-blur-xl">
-                                <CardHeader className="border-b border-[var(--border)] border-dashed bg-white/30">
+                            <Card className="overflow-hidden border-2 border-[var(--border)] bg-[var(--card-bg)]/50 backdrop-blur-xl">
+                                <CardHeader className="border-b border-[var(--border)] border-dashed bg-[var(--card-bg)]/30">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-xl bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)]">
                                             <User className="w-5 h-5" />
@@ -263,7 +259,7 @@ export default function CreateOrderPage() {
                                                     whileHover={{ scale: 1.02, translateY: -2 }}
                                                     whileTap={{ scale: 0.98 }}
                                                     onClick={() => setSelectedPatient(patient)}
-                                                    className="p-6 rounded-2xl border-2 border-[var(--border)] bg-white hover:border-[var(--primary)] hover:shadow-xl transition-all text-left flex items-center gap-4 group"
+                                                    className="p-6 rounded-2xl border-2 border-[var(--border)] bg-[var(--card-bg)] hover:border-[var(--primary)] hover:shadow-xl transition-all text-left flex items-center gap-4 group"
                                                 >
                                                     <div className="w-12 h-12 rounded-xl bg-[var(--surface-bg)] group-hover:bg-[var(--primary-light)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors font-black text-lg">
                                                         {patient.full_name[0]}
@@ -288,7 +284,7 @@ export default function CreateOrderPage() {
                         >
                             {/* Inventory Selection Section */}
                             <div className="lg:col-span-8 space-y-6">
-                                <Card className="border-[var(--border)] bg-white/80 backdrop-blur-sm overflow-hidden flex flex-col h-[700px]">
+                                <Card className="border-[var(--border)] bg-[var(--card-bg)]/80 backdrop-blur-sm overflow-hidden flex flex-col h-[700px]">
                                     <div className="p-6 border-b border-[var(--border)] border-dashed space-y-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -304,7 +300,7 @@ export default function CreateOrderPage() {
                                                 placeholder="Search medicine stock..."
                                                 value={searchQuery}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                                                className="pl-12 h-12 rounded-xl bg-white border-[var(--border)] focus:ring-2 focus:ring-[var(--primary-glow)]"
+                                                className="pl-12 h-12 rounded-xl bg-[var(--card-bg)] border-[var(--border)] focus:ring-2 focus:ring-[var(--primary-glow)]"
                                             />
                                         </div>
                                     </div>
@@ -325,7 +321,7 @@ export default function CreateOrderPage() {
                                                         <motion.div
                                                             key={item.id}
                                                             layoutId={`item-${item.id}`}
-                                                            className={`p-4 rounded-2xl border-2 transition-all group flex items-start justify-between ${inCart ? 'bg-[var(--primary-light)] border-[var(--primary)]' : 'bg-white border-[var(--border)] hover:border-[var(--primary-light)]'}`}
+                                                            className={`p-4 rounded-2xl border-2 transition-all group flex items-start justify-between ${inCart ? 'bg-[var(--primary-light)] border-[var(--primary)]' : 'bg-[var(--card-bg)] border-[var(--border)] hover:border-[var(--primary-light)]'}`}
                                                         >
                                                             <div className="space-y-1">
                                                                 <h4 className="font-black text-[var(--text-main)] italic truncate max-w-[150px]">{item.name}</h4>
@@ -352,10 +348,10 @@ export default function CreateOrderPage() {
                                     </div>
                                 </Card>
 
-                                <Card className="border-[var(--border)] border-dashed bg-white/50">
+                                <Card className="border-[var(--border)] border-dashed bg-[var(--card-bg)]/50">
                                     <div className="p-6 space-y-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                                            <div className="w-10 h-10 rounded-xl bg-[var(--warning-bg)] flex items-center justify-center text-[var(--warning)]">
                                                 <User className="w-5 h-5" />
                                             </div>
                                             <CardTitle className="text-xl font-black italic">Pharmacy Notes</CardTitle>
@@ -364,7 +360,7 @@ export default function CreateOrderPage() {
                                             placeholder="Add instructions, dosage info, or a personal note for the patient..."
                                             value={pharmacyNotes}
                                             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPharmacyNotes(e.target.value)}
-                                            className="min-h-[120px] rounded-2xl border-[var(--border)] focus:ring-2 focus:ring-orange-100"
+                                            className="min-h-[120px] rounded-2xl border-[var(--border)] focus:ring-2 focus:ring-[var(--warning-light)]"
                                         />
                                     </div>
                                 </Card>
@@ -372,13 +368,13 @@ export default function CreateOrderPage() {
 
                             {/* Order Summary Sidebar */}
                             <div className="lg:col-span-4 mt-6 lg:mt-0">
-                                <Card className="border-2 border-[var(--text-main)] bg-[var(--text-main)] text-white shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-8">
+                                <Card className="border-2 border-[var(--text-main)] bg-[var(--text-main)] text-[var(--text-inverse)] shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-8">
                                     <div className="p-8 space-y-8">
                                         <div className="space-y-2">
                                             <h3 className="text-3xl font-black italic tracking-tighter">Order Summary</h3>
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full w-fit">
-                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-100">Pending Review</span>
+                                            <div className="flex items-center gap-2 px-3 py-1 bg-[var(--text-inverse)]/10 rounded-full w-fit">
+                                                <CheckCircle2 className="w-3 h-3 text-[var(--success-500)]" />
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--success-light)]">Pending Review</span>
                                             </div>
                                         </div>
 
@@ -400,13 +396,13 @@ export default function CreateOrderPage() {
                                                         >
                                                             <div className="space-y-0.5">
                                                                 <p className="font-bold text-sm italic line-clamp-1">{item.name}</p>
-                                                                <p className="text-[10px] font-black uppercase tracking-widest text-white/50">1 x ₹{item.price.toFixed(2)}</p>
+                                                                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-inverse)]/50">1 x ₹{item.price.toFixed(2)}</p>
                                                             </div>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => removeFromCart(item.id)}
-                                                                className="h-8 w-8 rounded-lg hover:bg-white/10 text-white/40 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                                                                className="h-8 w-8 rounded-lg hover:bg-[var(--text-inverse)]/10 text-[var(--text-inverse)]/40 hover:text-[var(--error)] transition-all opacity-0 group-hover:opacity-100"
                                                             >
                                                                 <X className="w-4 h-4" />
                                                             </Button>
@@ -416,10 +412,10 @@ export default function CreateOrderPage() {
                                             )}
                                         </div>
 
-                                        <div className="space-y-6 pt-6 border-t border-white/10 border-dashed">
+                                        <div className="space-y-6 pt-6 border-t border-[var(--text-inverse)]/10 border-dashed">
                                             <div className="flex items-end justify-between">
                                                 <div className="space-y-1">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Total Amount</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-inverse)]/40">Total Amount</p>
                                                     <p className="text-4xl font-black">₹{calculateTotal().toFixed(2)}</p>
                                                 </div>
                                             </div>
@@ -437,7 +433,7 @@ export default function CreateOrderPage() {
                                                 )}
                                             </Button>
 
-                                            
+
                                         </div>
                                     </div>
                                 </Card>

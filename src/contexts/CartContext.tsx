@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect, R
 import { CartItem, InventoryItem } from '@/types';
 import { notifications, format } from '@/lib/notifications';
 import { INVENTORY_CONFIG } from '@/config/constants';
+import { logger } from '@/lib/logger';
 
 // Types
 export interface CartState {
@@ -178,7 +179,7 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
         localStorage.setItem(CART_PHARMACY_KEY, state.pharmacyId);
       }
     } catch (error) {
-      console.error('Failed to save cart to localStorage:', error);
+      logger.error('CartContext', 'Failed to save cart to localStorage:', error);
     }
   }, [state.items, state.pharmacyId]);
 
@@ -198,7 +199,7 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
         },
       });
     } catch (error) {
-      console.error('Failed to load cart from localStorage:', error);
+      logger.error('CartContext', 'Failed to load cart from localStorage:', error);
     }
   }, [initialPharmacyId]);
 
@@ -357,8 +358,7 @@ export function useCartSync(userId?: string) {
   // Sync with backend if user is logged in
   useEffect(() => {
     if (userId && items.length > 0 && pharmacyId) {
-      // Here you could implement backend sync logic
-      console.log('Would sync cart with backend for user:', userId);
+      logger.debug('CartContext', 'Would sync cart with backend for user:', userId);
     }
   }, [userId, items, pharmacyId]);
 }

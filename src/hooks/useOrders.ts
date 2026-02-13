@@ -6,6 +6,7 @@ import { Order, OrderStatus } from "@/types";
 import { handleAsyncError, safeToast } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { useUser } from "@/hooks/useAuth";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface OrderItem {
   id: string;
@@ -104,16 +105,15 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['orders', user?.id, role],
+    queryKey: queryKeys.orders(user?.id, role),
     queryFn: () => {
       if (!user?.id) throw new Error("User not authenticated");
       return fetchOrders(user.id, role);
     },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
-    refetchInterval: 1000 * 30, // Poll every 30 seconds
-    // REMOVED: placeholderData causing infinite loading on tab switch
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchInterval: 1000 * 30,
   });
 
   const updateStatusMutation = useMutation({

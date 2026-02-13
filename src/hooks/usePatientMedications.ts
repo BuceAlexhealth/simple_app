@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useAuth";
 import { InventoryItem } from "@/types";
+import { logger } from "@/lib/logger";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface Pharmacy {
   id: string;
@@ -28,7 +30,7 @@ const fetchPatientMedications = async (userId: string): Promise<PatientMedicatio
     .eq("patient_id", userId);
 
   if (connError) {
-    console.error("Error fetching connections:", connError);
+    logger.error('usePatientMedications', 'Error fetching connections:', connError);
     throw new Error("Failed to load connections");
   }
 
@@ -52,7 +54,7 @@ const fetchPatientMedications = async (userId: string): Promise<PatientMedicatio
       .order("name");
 
     if (error) {
-      console.error("Error fetching medications:", error);
+      logger.error('usePatientMedications', 'Error fetching medications:', error);
       throw new Error("Failed to load medications");
     }
 

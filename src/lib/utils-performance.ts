@@ -11,6 +11,8 @@ export function debounce<T extends (...args: any[]) => any>(
   };
 }
 
+import { logger } from './logger';
+
 // Utility for safe localStorage operations
 export const storage = {
   get: (key: string): any | null => {
@@ -18,7 +20,7 @@ export const storage = {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.warn('Error reading from localStorage:', error);
+      logger.warn('storage', 'Error reading from localStorage:', error);
       return null;
     }
   },
@@ -27,7 +29,7 @@ export const storage = {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.warn('Error writing to localStorage:', error);
+      logger.warn('storage', 'Error writing to localStorage:', error);
     }
   },
   
@@ -35,7 +37,7 @@ export const storage = {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.warn('Error removing from localStorage:', error);
+      logger.warn('storage', 'Error removing from localStorage:', error);
     }
   }
 };

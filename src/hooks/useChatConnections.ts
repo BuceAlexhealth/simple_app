@@ -9,6 +9,8 @@ import { useUser } from '@/hooks/useAuth';
 import { createRepositories } from '@/lib/repositories';
 import { notifications, handleError } from '@/lib/notifications';
 import { CHAT_CONFIG } from '@/config/constants';
+import { logger } from '@/lib/logger';
+import { queryKeys } from '@/lib/queryKeys';
 
 export interface ChatConnection {
   id: string;
@@ -143,7 +145,7 @@ export function useChatConnections(isPharmacy: boolean = false): ChatConnectionH
           }
         }
       } catch (err) {
-        console.error('Failed to refresh connections:', err);
+        logger.error('useChatConnections', 'Failed to refresh connections:', err);
       }
     }, CHAT_CONFIG.MESSAGE_REFRESH_INTERVAL);
 
