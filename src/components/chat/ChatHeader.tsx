@@ -3,7 +3,10 @@
 import { ChevronLeft, MoreVertical, Circle } from "lucide-react";
 
 interface ChatHeaderProps {
-  selectedConnection: any;
+  selectedConnection: {
+    full_name?: string;
+    id: string;
+  };
   role: 'patient' | 'pharmacy';
   isMobile: boolean;
   onBackClick: () => void;
@@ -28,7 +31,7 @@ export function ChatHeader({
             <ChevronLeft className="w-6 h-6" />
           </button>
         )}
-        <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md">
+        <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-full flex items-center justify-center text-[var(--text-inverse)] text-sm font-bold shadow-md">
           {selectedConnection.full_name?.[0]?.toUpperCase()}
         </div>
         <div>

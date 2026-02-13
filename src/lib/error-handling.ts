@@ -5,7 +5,7 @@ export interface AsyncErrorOptions {
   fallbackMessage?: string;
   rethrow?: boolean;
   logLevel?: 'error' | 'warn' | 'info';
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -17,7 +17,7 @@ export const handleAsyncError = async <T>(
   options: AsyncErrorOptions = { showToast: true, rethrow: true }
 ): Promise<T | null> => {
   const { showToast = true, fallbackMessage, rethrow = true, logLevel = 'error', context } = options;
-  
+
   try {
     return await operation();
   } catch (error) {
@@ -43,17 +43,17 @@ export const handleAsyncError = async <T>(
       default:
         console.error(logData);
     }
-    
+
     const message = error instanceof Error ? error.message : fallbackMessage || errorMessage;
-    
+
     if (showToast) {
       toast.error(message);
     }
-    
+
     if (rethrow) {
       throw error;
     }
-    
+
     return null;
   }
 };
@@ -105,7 +105,7 @@ export class ApiError extends Error {
     message: string,
     public statusCode: number = 500,
     public code?: string,
-    public context?: Record<string, any>
+    public context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -117,7 +117,7 @@ export class ApiError extends Error {
  */
 export function logStructuredError(
   error: Error | unknown,
-  context: Record<string, any> = {},
+  context: Record<string, unknown> = {},
   level: 'error' | 'warn' | 'info' = 'error'
 ): void {
   const logEntry = {

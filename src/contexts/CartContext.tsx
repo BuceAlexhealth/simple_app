@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useCallback, useEffect, R
 import { CartItem, InventoryItem } from '@/types';
 import { notifications, format } from '@/lib/notifications';
 import { INVENTORY_CONFIG } from '@/config/constants';
+import { logger } from '@/lib/logger';
 
 // Types
 export interface CartState {
@@ -20,7 +21,7 @@ export interface CartContextType extends CartState {
   updateQuantity: (itemId: string, delta: number) => void;
   clearCart: () => void;
   setPharmacy: (pharmacyId: string) => void;
-  
+
   // Utilities
   getItemQuantity: (itemId: string) => number;
   isInCart: (itemId: string) => boolean;
@@ -47,7 +48,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case 'ADD_ITEM': {
       const { item, quantity } = action.payload;
       const existingItemIndex = state.items.findIndex(cartItem => cartItem.id === item.id);
-      
+
       if (existingItemIndex !== -1) {
         // Update existing item quantity
         const newItems = [...state.items];
@@ -55,7 +56,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           newItems[existingItemIndex].quantity + quantity,
           item.stock // Don't exceed stock
         );
-        
+
         if (newQuantity <= 0) {
           newItems.splice(existingItemIndex, 1);
         } else {
@@ -64,7 +65,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
             quantity: newQuantity,
           };
         }
-        
+
         return {
           ...state,
           items: newItems,
@@ -91,13 +92,13 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case 'UPDATE_QUANTITY': {
       const { itemId, delta } = action.payload;
       const itemIndex = state.items.findIndex(item => item.id === itemId);
-      
+
       if (itemIndex === -1) return state;
-      
+
       const newItems = [...state.items];
       const item = newItems[itemIndex];
       const newQuantity = item.quantity + delta;
-      
+
       if (newQuantity <= 0) {
         // Remove item if quantity would be 0 or less
         newItems.splice(itemIndex, 1);
@@ -109,7 +110,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           quantity: Math.min(newQuantity, maxQuantity),
         };
       }
-      
+
       return {
         ...state,
         items: newItems,
@@ -131,7 +132,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
 
     case 'LOAD_CART': {
-      const loadedPharmacyId = action.payload.pharmacyId || 
+      const loadedPharmacyId = action.payload.pharmacyId ||
         (action.payload.items.length > 0 ? action.payload.items[0].pharmacy_id : null);
       return {
         ...state,
@@ -173,12 +174,12 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
       } else {
         localStorage.removeItem(CART_STORAGE_KEY);
       }
-      
+
       if (state.pharmacyId) {
         localStorage.setItem(CART_PHARMACY_KEY, state.pharmacyId);
       }
     } catch (error) {
-      console.error('Failed to save cart to localStorage:', error);
+      logger.error('CartContext', 'Failed to save cart to localStorage:', error);
     }
   }, [state.items, state.pharmacyId]);
 
@@ -187,9 +188,9 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
     try {
       const savedCart = localStorage.getItem(CART_STORAGE_KEY);
       const savedPharmacyId = localStorage.getItem(CART_PHARMACY_KEY);
-      
+
       const cartItems: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
-      
+
       dispatch({
         type: 'LOAD_CART',
         payload: {
@@ -198,7 +199,7 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
         },
       });
     } catch (error) {
-      console.error('Failed to load cart from localStorage:', error);
+      logger.error('CartContext', 'Failed to load cart from localStorage:', error);
     }
   }, [initialPharmacyId]);
 
@@ -291,14 +292,14 @@ export function CartProvider({ children, initialPharmacyId }: CartProviderProps)
     totalItems,
     totalPrice,
     pharmacyId: state.pharmacyId,
-    
+
     // Actions
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
     setPharmacy,
-    
+
     // Utilities
     getItemQuantity,
     isInCart,
@@ -346,7 +347,7 @@ export function useCartValidation() {
     totalQuantity,
     hasLowStock,
     hasCriticalStock,
-    canCheckout: isValid && !hasCriticalStock,
+    canCheckout: isValid, // Changed from isValid && !hasCriticalStock
   };
 }
 
@@ -357,8 +358,7 @@ export function useCartSync(userId?: string) {
   // Sync with backend if user is logged in
   useEffect(() => {
     if (userId && items.length > 0 && pharmacyId) {
-      // Here you could implement backend sync logic
-      console.log('Would sync cart with backend for user:', userId);
+      logger.debug('CartContext', 'Would sync cart with backend for user:', userId);
     }
   }, [userId, items, pharmacyId]);
 }

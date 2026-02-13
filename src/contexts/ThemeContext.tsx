@@ -1,150 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'system';
+type ResolvedThemeMode = 'light' | 'dark';
 
-interface Theme {
+interface ThemeContextType {
   mode: ThemeMode;
-  resolvedMode: 'light' | 'dark';
-  colors: Record<string, string>;
-}
-
-interface ThemeContextType extends Theme {
+  resolvedMode: ResolvedThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  toggleTheme: () => void;
 }
-
-// Light theme colors - premium, professional palette
-const lightColors: Record<string, string> = {
-  // Backgrounds
-  '--app-bg': '#F8FAFC',
-  '--surface-bg': '#FFFFFF',
-  '--card-bg': '#FFFFFF',
-  '--overlay-bg': 'rgba(255, 255, 255, 0.95)',
-
-  // Text colors - high contrast but not harsh
-  '--text-main': '#1A1F36',
-  '--text-muted': '#64748B',
-  '--text-light': '#94A3B8',
-  '--text-inverse': '#FFFFFF',
-
-  // Primary colors - calming medical teal
-  '--primary': '#0D9488',
-  '--primary-dark': '#0F766E',
-  '--primary-light': '#CCFBF1',
-  '--primary-glow': 'rgba(13, 148, 136, 0.15)',
-
-  // Accent colors
-  '--success': '#059669',
-  '--success-bg': '#ECFDF5',
-  '--success-dark': '#047857',
-  '--warning': '#D97706',
-  '--warning-bg': '#FFFBEB',
-  '--error': '#DC2626',
-  '--error-bg': '#FEF2F2',
-  '--error-dark': '#B91C1C',
-  '--info': '#0891B2',
-  '--info-bg': '#F0F9FF',
-
-  // Neutral colors
-  '--border': '#E5E7EB',
-  '--border-light': '#F3F4F6',
-  '--border-subtle': '#F9FAFB',
-  '--neutral': '#6B7280',
-  '--neutral-bg': '#F9FAFB',
-
-  // Shadow system - premium depth
-  '--shadow-xs': '0 1px 2px rgba(0, 0, 0, 0.04)',
-  '--shadow-sm': '0 2px 8px rgba(0, 0, 0, 0.06)',
-  '--shadow-md': '0 4px 16px rgba(0, 0, 0, 0.08)',
-  '--shadow-lg': '0 8px 32px rgba(0, 0, 0, 0.12)',
-  '--shadow-xl': '0 16px 64px rgba(0, 0, 0, 0.16)',
-  '--shadow-primary': '0 4px 20px rgba(37, 99, 235, 0.15)',
-
-  // Gradients
-  '--gradient-primary': 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-  '--gradient-surface': 'linear-gradient(135deg, #FAFBFC 0%, #F3F4F6 100%)',
-  '--gradient-card': 'linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%)',
-
-  // Special effects
-  '--blur-sm': 'blur(8px)',
-  '--blur-md': 'blur(16px)',
-  '--blur-lg': 'blur(24px)',
-
-  // Border radius - refined system
-  '--radius-xs': '2px',
-  '--radius-sm': '6px',
-  '--radius-md': '10px',
-  '--radius-lg': '14px',
-  '--radius-xl': '20px',
-  '--radius-full': '9999px',
-};
-
-// Dark theme colors - higher contrast, easy on eyes
-const darkColors: Record<string, string> = {
-  // Backgrounds - softer dark mode
-  '--app-bg': '#0F172A',
-  '--surface-bg': '#1E293B',
-  '--card-bg': '#1F2937',
-  '--overlay-bg': 'rgba(15, 23, 42, 0.95)',
-
-  // Text colors - pure whites for maximum readability
-  '--text-main': '#FFFFFF',
-  '--text-muted': '#A1A1AA',
-  '--text-light': '#71717A',
-  '--text-inverse': '#1A1F36',
-
-  // Primary colors - softer teal for dark mode
-  '--primary': '#14B8A6',
-  '--primary-dark': '#0D9488',
-  '--primary-light': 'rgba(20, 184, 166, 0.15)',
-  '--primary-glow': 'rgba(20, 184, 166, 0.25)',
-
-  // Accent colors - dark mode optimized
-  '--success': '#10B981',
-  '--success-bg': 'rgba(16, 185, 129, 0.1)',
-  '--success-dark': '#34D399',
-  '--warning': '#F59E0B',
-  '--warning-bg': 'rgba(245, 158, 11, 0.1)',
-  '--error': '#EF4444',
-  '--error-bg': 'rgba(239, 68, 68, 0.1)',
-  '--error-dark': '#F87171',
-  '--info': '#06B6D4',
-  '--info-bg': 'rgba(6, 182, 212, 0.1)',
-
-  // Neutral colors - dark mode specific
-  '--border': '#2A2D3A',
-  '--border-light': '#373A4A',
-  '--border-subtle': '#1F222D',
-  '--neutral': '#9CA3AF',
-  '--neutral-bg': '#1A1D29',
-
-  // Shadow system - adapted for dark
-  '--shadow-xs': '0 1px 2px rgba(0, 0, 0, 0.15)',
-  '--shadow-sm': '0 2px 8px rgba(0, 0, 0, 0.25)',
-  '--shadow-md': '0 4px 16px rgba(0, 0, 0, 0.35)',
-  '--shadow-lg': '0 8px 32px rgba(0, 0, 0, 0.45)',
-  '--shadow-xl': '0 16px 64px rgba(0, 0, 0, 0.55)',
-  '--shadow-primary': '0 4px 20px rgba(59, 130, 246, 0.25)',
-
-  // Gradients - dark mode optimized
-  '--gradient-primary': 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-  '--gradient-surface': 'linear-gradient(135deg, #0F0F14 0%, #1A1D29 100%)',
-  '--gradient-card': 'linear-gradient(135deg, #23262F 0%, #2A2D3A 100%)',
-
-  // Special effects
-  '--blur-sm': 'blur(8px)',
-  '--blur-md': 'blur(16px)',
-  '--blur-lg': 'blur(24px)',
-
-  // Border radius - consistent with light
-  '--radius-xs': '2px',
-  '--radius-sm': '6px',
-  '--radius-md': '10px',
-  '--radius-lg': '14px',
-  '--radius-xl': '20px',
-  '--radius-full': '9999px',
-};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -156,76 +22,93 @@ export function useTheme() {
   return context;
 }
 
+function getSystemTheme(): ResolvedThemeMode {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function resolveTheme(mode: ThemeMode): ResolvedThemeMode {
+  if (mode === 'system') {
+    return getSystemTheme();
+  }
+  return mode;
+}
+
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // Initialize from localStorage or default to system
+  const [mode, setMode] = useState<ThemeMode>('system');
+  const [resolvedMode, setResolvedMode] = useState<ResolvedThemeMode>('light');
+  const [mounted, setMounted] = useState(false);
+
+  // Initialize theme from localStorage on mount
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme') as ThemeMode | null;
-      if (saved) return createTheme(saved);
-      return createTheme('system');
+      const initialMode = saved || 'system';
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMode(initialMode);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResolvedMode(resolveTheme(initialMode));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMounted(true);
     }
-    return createTheme('system');
-  });
+  }, []);
 
-  function createTheme(mode: ThemeMode): Theme {
-    const resolvedMode = mode === 'system'
-      ? (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : mode;
-
-    return {
-      mode,
-      resolvedMode,
-      colors: resolvedMode === 'dark' ? darkColors : lightColors,
-    };
-  }
-
-  function setThemeMode(mode: ThemeMode) {
-    const newTheme = createTheme(mode);
-    setThemeState(newTheme);
-
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('theme', mode);
-    }
-  }
-
-  // Listen for system theme changes
-  useEffect(() => {
-    if (theme.mode === 'system' && typeof window !== 'undefined') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-      const handleChange = () => {
-        setThemeState(prev => createTheme('system'));
-      };
-
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, []); // Only set up listener once
-
-  // Apply theme colors to CSS variables
+  // Apply theme to document
   useEffect(() => {
     if (typeof document !== 'undefined') {
       const root = document.documentElement;
-
-      // Apply all color variables
-      Object.entries(theme.colors).forEach(([key, value]) => {
-        root.style.setProperty(key, value);
-      });
-
-      // Set theme attribute for CSS
-      root.setAttribute('data-theme', theme.resolvedMode);
+      
+      // Set data-theme attribute for CSS selector
+      root.setAttribute('data-theme', resolvedMode);
+      
+      // Set class for tailwind dark mode (if needed)
+      if (resolvedMode === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
     }
-  }, [theme.colors, theme.resolvedMode]);
+  }, [resolvedMode]);
 
-  const contextValue = React.useMemo<ThemeContextType>(() => ({
-    ...theme,
+  // Listen for system theme changes
+  useEffect(() => {
+    if (mode !== 'system' || typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = () => {
+      setResolvedMode(getSystemTheme());
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [mode]);
+
+  const setThemeMode = useCallback((newMode: ThemeMode) => {
+    setMode(newMode);
+    setResolvedMode(resolveTheme(newMode));
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newMode);
+    }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    const nextMode = resolvedMode === 'light' ? 'dark' : 'light';
+    setThemeMode(nextMode);
+  }, [resolvedMode, setThemeMode]);
+
+  // Always provide context value (even during SSR/hydration)
+  const contextValue = useMemo<ThemeContextType>(() => ({
+    mode,
+    resolvedMode,
     setThemeMode,
-  }), [theme]);
+    toggleTheme,
+  }), [mode, resolvedMode, setThemeMode, toggleTheme]);
 
   return (
     <ThemeContext.Provider value={contextValue}>

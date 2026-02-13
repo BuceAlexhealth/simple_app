@@ -3,6 +3,7 @@ export { useInventory } from './useInventory';
 export { useOrders } from './useOrders';
 export { usePharmacies } from './usePharmacies';
 export { usePatientMedications } from './usePatientMedications';
+export { useBatches, useExpiredBatches, useBatchMovements, useConsumeBatches } from './useBatches';
 
 // Auth hook
 export { useAuth, useUser, useRequireAuth } from './useAuth';

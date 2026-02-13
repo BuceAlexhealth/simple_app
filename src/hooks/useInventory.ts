@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { InventoryItem } from "@/types";
 import { safeToast } from "@/lib/error-handling";
 import { useUser } from "@/hooks/useAuth";
+import { logger } from "@/lib/logger";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface InventoryResponse {
   items: InventoryItem[];
@@ -19,7 +21,7 @@ const fetchInventory = async (userId: string): Promise<InventoryResponse> => {
     .order("name");
 
   if (error) {
-    console.error("Error fetching inventory:", error);
+    logger.error('useInventory', 'Error fetching inventory:', error);
     throw new Error("Failed to load inventory");
   }
 
@@ -39,15 +41,14 @@ export const useInventory = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['inventory', user?.id],
+    queryKey: queryKeys.inventory(user?.id),
     queryFn: () => {
       if (!user?.id) throw new Error("User not authenticated");
       return fetchInventory(user.id);
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    // REMOVED: placeholderData causing infinite loading on tab switch
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const recordOfflineSalesMutation = useMutation({
@@ -70,10 +71,10 @@ export const useInventory = () => {
     onSuccess: () => {
       safeToast.success("EOD adjustments applied successfully!");
       // Invalidate and refetch inventory
-      queryClient.invalidateQueries({ queryKey: ['inventory', user?.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(user?.id) });
       setAdjustments({}); // Clear adjustments
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       safeToast.error(error.message || "Failed to apply EOD adjustments");
     }
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useAuth";
 import {
@@ -24,16 +24,30 @@ interface ChatInterfaceProps {
     role: 'patient' | 'pharmacy';
 }
 
+interface Connection {
+    id: string;
+    full_name?: string;
+}
+
+interface Message {
+    id: number | string;
+    sender_id: string;
+    receiver_id: string;
+    content: string;
+    image_url?: string;
+    created_at: string;
+}
+
 export default function ChatInterface({ role }: ChatInterfaceProps) {
     const { user: currentUser, loading: userLoading } = useUser();
     
     // Data State
-    const [connections, setConnections] = useState<any[]>([]);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [connections, setConnections] = useState<Connection[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
-    const [selectedConnection, setSelectedConnection] = useState<any>(null);
+    const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
     const [newMessage, setNewMessage] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [isMobile, setIsMobile] = useState(false);
@@ -43,8 +57,107 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Determines identifiers based on role
-    const myIdField = role === 'patient' ? 'patient_id' : 'pharmacy_id';
-    const otherIdField = role === 'patient' ? 'pharmacy_id' : 'patient_id';
+    const myIdField = useMemo(() => role === 'patient' ? 'patient_id' : 'pharmacy_id', [role]);
+    const otherIdField = useMemo(() => role === 'patient' ? 'pharmacy_id' : 'patient_id', [role]);
+
+    // Fetch connections
+    const fetchConnections = useCallback(async () => {
+        if (!currentUser) return;
+        
+        const { data } = await supabase
+            .from("connections")
+            .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
+            .eq(myIdField, currentUser.id);
+
+        if (data) {
+            const normalized = data.map((c: { profiles: Connection | Connection[] }) => {
+                const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+                return profile;
+            }).filter(Boolean);
+
+            const unique = Array.from(new Map(normalized.map((p: Connection) => [p.id, p])).values());
+            setConnections(unique);
+        }
+        setLoading(false);
+    }, [currentUser, myIdField, otherIdField]);
+
+    const fetchMessages = useCallback(async (otherId: string) => {
+        if (!currentUser) return;
+        
+        const { data } = await supabase
+            .from("messages")
+            .select("*")
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`)
+            .order("created_at", { ascending: true });
+
+        setMessages(data || []);
+    }, [currentUser]);
+
+    const subscribeToMessages = useCallback((otherId: string) => {
+        if (!currentUser) return () => {};
+        
+        const channel = supabase
+            .channel(`chat:${otherId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages' },
+                (payload: { new: Message }) => {
+                    if (
+                        (payload.new.sender_id === currentUser.id && payload.new.receiver_id === otherId) ||
+                        (payload.new.sender_id === otherId && payload.new.receiver_id === currentUser.id)
+                    ) {
+                        setMessages(prev => [...prev, payload.new]);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [currentUser]);
+
+    // Initial Load
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        
+        const initFetch = async () => {
+            if (!currentUser) return;
+            
+            const { data } = await supabase
+                .from("connections")
+                .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
+                .eq(myIdField, currentUser.id);
+
+            if (data) {
+                const normalized = data.map((c: { profiles: Connection | Connection[] }) => {
+                    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+                    return profile;
+                }).filter(Boolean);
+
+                const unique = Array.from(new Map(normalized.map((p: Connection) => [p.id, p])).values());
+                setConnections(unique);
+            }
+            setLoading(false);
+        };
+        
+        initFetch();
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [currentUser, myIdField, otherIdField]);
+
+    // Load Messages when connection selected
+    useEffect(() => {
+        if (selectedConnection) {
+            fetchMessages(selectedConnection.id);
+            const unsubscribe = subscribeToMessages(selectedConnection.id);
+            return () => { unsubscribe(); };
+        }
+    }, [selectedConnection, fetchMessages, subscribeToMessages]);
+
+    // Scroll to bottom
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
     // Show loading while UserContext is initializing
     if (userLoading) {
@@ -64,108 +177,11 @@ export default function ChatInterface({ role }: ChatInterfaceProps) {
         );
     }
 
-    const fetchConnections = useCallback(async () => {
-        // Fetch connections where I am the "myIdField"
-        const { data, error } = await supabase
-            .from("connections")
-            .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-            .eq(myIdField, currentUser.id);
-
-        if (data) {
-            // Structure is slightly inconsistent in original files (array vs object) 
-            // but 'profiles' usually comes back as an object or array depending on relation type (one-to-one or one-to-many logic in supabase client)
-            // We normalize it here.
-            const normalized = data.map((c: any) => {
-                const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-                return profile;
-            }).filter(Boolean);
-
-            // Remove duplicates just in case
-            const unique = Array.from(new Map(normalized.map((p: any) => [p.id, p])).values());
-            setConnections(unique);
-        }
-        setLoading(false);
-    }, [currentUser.id, myIdField, otherIdField]);
-
-    const fetchMessages = useCallback(async (otherId: string) => {
-        const { data } = await supabase
-            .from("messages")
-            .select("*")
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`)
-            .order("created_at", { ascending: true });
-
-        setMessages(data || []);
-    }, [currentUser.id]);
-
-    const subscribeToMessages = useCallback((otherId: string) => {
-        const channel = supabase
-            .channel(`chat:${otherId}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages' },
-                (payload) => {
-                    if (
-                        (payload.new.sender_id === currentUser.id && payload.new.receiver_id === otherId) ||
-                        (payload.new.sender_id === otherId && payload.new.receiver_id === currentUser.id)
-                    ) {
-                        setMessages(prev => [...prev, payload.new]);
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [currentUser.id]);
-
-    // Initial Load
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        
-        // Direct fetch to avoid dependency issues
-        const initFetch = async () => {
-            // Fetch connections where I am the "myIdField"
-            const { data, error } = await supabase
-                .from("connections")
-                .select(`${otherIdField}, profiles:${otherIdField}(id, full_name)`)
-                .eq(myIdField, currentUser.id);
-
-            if (data) {
-                const normalized = data.map((c: any) => {
-                    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
-                    return profile;
-                }).filter(Boolean);
-
-                const unique = Array.from(new Map(normalized.map((p: any) => [p.id, p])).values());
-                setConnections(unique);
-            }
-            setLoading(false);
-        };
-        
-        initFetch();
-        return () => window.removeEventListener('resize', checkMobile);
-    }, [currentUser.id, myIdField, otherIdField]);
-
-    // Load Messages when connection selected
-    useEffect(() => {
-        if (selectedConnection) {
-            fetchMessages(selectedConnection.id);
-            const unsubscribe = subscribeToMessages(selectedConnection.id);
-            return () => { unsubscribe(); };
-        }
-    }, [selectedConnection, fetchMessages, subscribeToMessages]);
-
-    // Scroll to bottom
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || !e.target.files[0] || !currentUser) return;
 
         setIsUploading(true);
@@ -253,7 +269,7 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const itemIcon = role === 'patient' ? <Store className="w-5 h-5" /> : <User className="w-5 h-5" />;
 
     return (
-        <div className="h-[calc(100dvh-80px)] md:h-[calc(100vh-110px)] flex bg-white md:rounded-3xl md:shadow-xl md:border md:border-slate-200 overflow-hidden relative">
+        <div className="h-[calc(100dvh-80px)] md:h-[calc(100vh-110px)] flex bg-[var(--card-bg)] md:rounded-3xl md:shadow-xl md:border md:border-[var(--border)] overflow-hidden relative">
 
             {/* Sidebar - List */}
             <AnimatePresence mode="popLayout" initial={false}>
@@ -262,25 +278,25 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: -50, opacity: 0 }}
-                        className="w-full md:w-80 lg:w-96 border-r border-slate-100 bg-white flex flex-col z-10 absolute md:relative inset-y-0"
+                        className="w-full md:w-80 lg:w-96 border-r border-[var(--border-light)] bg-[var(--card-bg)] flex flex-col z-10 absolute md:relative inset-y-0"
                     >
-                        <div className="p-4 border-b border-slate-50 bg-white z-10 sticky top-0">
-                            <h2 className="text-xl font-black text-slate-800 tracking-tight mb-4">{listTitle}</h2>
+                        <div className="p-4 border-b border-[var(--border-subtle)] bg-[var(--card-bg)] z-10 sticky top-0">
+                            <h2 className="text-xl font-black text-[var(--text-main)] tracking-tight mb-4">{listTitle}</h2>
                             <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
                                 <input
                                     type="text"
                                     placeholder="Search..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400"
+                                    className="w-full pl-9 pr-4 py-2.5 bg-[var(--surface-bg)] border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-[var(--primary-light)] outline-none transition-all placeholder:text-[var(--text-light)]"
                                 />
                             </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-2">
                             {filteredConnections.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                                <div className="flex flex-col items-center justify-center h-40 text-[var(--text-light)]">
                                     {emptyIcon}
                                     <p className="text-xs">{emptyText}</p>
                                 </div>
@@ -292,21 +308,21 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                             layoutId={`conn-${conn.id}`}
                                             onClick={() => setSelectedConnection(conn)}
                                             className={`p-3 rounded-2xl cursor-pointer transition-all group flex items-center gap-3 ${selectedConnection?.id === conn.id
-                                                ? 'bg-indigo-50 shadow-sm ring-1 ring-indigo-100'
-                                                : 'hover:bg-slate-50'
+                                                ? 'bg-[var(--primary-light)] shadow-sm ring-1 ring-[var(--primary-light)]'
+                                                : 'hover:bg-[var(--surface-bg)]'
                                                 }`}
                                         >
                                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-colors shrink-0 ${selectedConnection?.id === conn.id
-                                                ? 'bg-[var(--primary)] text-white'
-                                                : 'bg-white border border-slate-100 text-slate-600 group-hover:border-indigo-200'
+                                                ? 'bg-[var(--primary)] text-[var(--text-inverse)]'
+                                                : 'bg-[var(--card-bg)] border border-[var(--border-light)] text-[var(--neutral)] group-hover:border-[var(--primary-light)]'
                                                 }`}>
                                                 {conn.full_name?.[0]?.toUpperCase() || itemIcon}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className={`text-sm font-bold truncate ${selectedConnection?.id === conn.id ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                <h4 className={`text-sm font-bold truncate ${selectedConnection?.id === conn.id ? 'text-[var(--primary-dark)]' : 'text-[var(--text-main)]'}`}>
 {conn.full_name || 'Unknown'}
                                                 </h4>
-                                                <p className={`text-xs truncate ${selectedConnection?.id === conn.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                <p className={`text-xs truncate ${selectedConnection?.id === conn.id ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>
                                                     {statusText}
                                                 </p>
                                             </div>
@@ -327,39 +343,39 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                         animate={isMobile ? { x: 0 } : { opacity: 1 }}
                         exit={isMobile ? { x: "100%" } : { opacity: 0 }}
                         transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                        className="flex-1 flex flex-col bg-[#F8FAFC] relative z-0 w-full absolute md:relative inset-0"
+                        className="flex-1 flex flex-col bg-[var(--app-bg)] relative z-0 w-full absolute md:relative inset-0"
                     >
                         {selectedConnection ? (
                             <>
-                                <div className="h-16 border-b border-slate-200/50 bg-white/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-4 shadow-sm">
+                                <div className="h-16 border-b border-[var(--border)]/50 bg-[var(--card-bg)]/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-4 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         {isMobile && (
                                             <button
                                                 onClick={() => setSelectedConnection(null)}
-                                                className="p-1.5 -ml-2 rounded-full hover:bg-slate-100 text-slate-500"
+                                                className="p-1.5 -ml-2 rounded-full hover:bg-[var(--surface-bg)] text-[var(--text-muted)]"
                                             >
                                                 <ChevronLeft className="w-6 h-6" />
                                             </button>
                                         )}
-                                        <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md shadow-indigo-200">
+                                        <div className="w-9 h-9 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-full flex items-center justify-center text-[var(--text-inverse)] text-sm font-bold shadow-md shadow-[var(--primary-glow)]">
                                             {selectedConnection.full_name?.[0]?.toUpperCase()}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-800 text-sm leading-tight">
+                                            <h3 className="font-bold text-[var(--text-main)] text-sm leading-tight">
                                                 {selectedConnection.full_name}
                                             </h3>
-                                            <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            <span className="flex items-center gap-1.5 text-[10px] text-[var(--success)] font-bold uppercase tracking-wider">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success-500)] animate-pulse" />
                                                 {badgeText}
                                             </span>
                                         </div>
                                     </div>
-                                    <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
+                                    <button className="p-2 text-[var(--text-light)] hover:text-[var(--text-muted)] hover:bg-[var(--surface-bg)] rounded-full transition-colors">
                                         <MoreVertical className="w-5 h-5" />
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-4 space-y-6 md:p-6 bg-slate-50/50">
+                                <div className="flex-1 overflow-y-auto p-4 space-y-6 md:p-6 bg-[var(--surface-bg)]/50">
                                     {messages.map((msg, i) => {
                                         const isMe = msg.sender_id === currentUser.id;
                                         const isOrder = msg.content.includes("ORDER_ID:");
@@ -381,7 +397,7 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                                 ) : (
                                                     <div className={`max-w-[85%] md:max-w-[70%]`}>
                                                         {msg.image_url ? (
-                                                            <div className={`rounded-xl overflow-hidden mb-1 border ${isMe ? 'border-indigo-200' : 'border-slate-200'}`}>
+                                                            <div className={`rounded-xl overflow-hidden mb-1 border ${isMe ? 'border-[var(--primary-light)]' : 'border-[var(--border)]'}`}>
                                                                 <img
                                                                     src={msg.image_url}
                                                                     alt="Attachment"
@@ -392,13 +408,13 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                                         ) : null}
                                                         {msg.content && msg.content !== "Sent an image" && (
                                                             <div className={`px-4 py-3 text-sm leading-relaxed shadow-sm  ${isMe
-                                                                ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-sm'
-                                                                : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm'
+                                                                ? 'bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-[var(--text-inverse)] rounded-2xl rounded-tr-sm'
+                                                                : 'bg-[var(--card-bg)] text-[var(--text-main)] border border-[var(--border-light)] rounded-2xl rounded-tl-sm'
                                                                 }`}>
                                                                 {msg.content}
                                                             </div>
                                                         )}
-                                                        <div className={`text-[10px] mt-1 opacity-60 flex gap-1 items-center ${isMe ? 'justify-end text-slate-400' : 'justify-start text-slate-400'
+                                                        <div className={`text-[10px] mt-1 opacity-60 flex gap-1 items-center ${isMe ? 'justify-end text-[var(--text-light)]' : 'justify-start text-[var(--text-light)]'
                                                             }`}>
                                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             {isMe && <Check className="w-3 h-3" />}
@@ -411,11 +427,11 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                     <div ref={messagesEndRef} />
                                 </div>
 
-                                <div className="p-4 bg-white border-t border-slate-100 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.02)] z-20">
+                                <div className="p-4 bg-[var(--card-bg)] border-t border-[var(--border-light)] shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.02)] z-20">
                                     <form onSubmit={(e) => sendMessage(e)} className="flex items-end gap-2 max-w-4xl mx-auto">
-                                        <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all flex items-center px-4 py-3">
+                                        <div className="flex-1 bg-[var(--surface-bg)] rounded-2xl border border-[var(--border)] focus-within:ring-2 focus-within:ring-[var(--primary-light)] focus-within:border-[var(--primary)] transition-all flex items-center px-4 py-3">
                                             <input
-                                                className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 max-h-20 resize-none"
+                                                className="flex-1 bg-transparent border-none outline-none text-sm text-[var(--text-main)] placeholder:text-[var(--text-light)] max-h-20 resize-none"
                                                 placeholder="Type your message..."
                                                 value={newMessage}
                                                 onChange={e => setNewMessage(e.target.value)}
@@ -430,7 +446,7 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                             <button
                                                 type="button"
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className={`p-2 rounded-full hover:bg-slate-200 transition-colors ${isUploading ? 'animate-pulse text-indigo-500' : 'text-slate-400 hover:text-indigo-500'}`}
+                                                className={`p-2 rounded-full hover:bg-[var(--border-light)] transition-colors ${isUploading ? 'animate-pulse text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--primary)]'}`}
                                                 disabled={isUploading}
                                             >
                                                 {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
@@ -438,7 +454,7 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                         </div>
                                         <button
                                             disabled={!newMessage.trim() && !isUploading}
-                                            className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg hover:scale-105 active:scale-95"
+                                            className="p-3 bg-[var(--primary)] text-[var(--text-inverse)] rounded-2xl hover:bg-[var(--primary-dark)] disabled:opacity-50 transition-all shadow-lg hover:scale-105 active:scale-95"
                                         >
                                             <Send className="w-5 h-5" />
                                         </button>
@@ -446,12 +462,12 @@ async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-8 hidden md:flex">
-                                <div className="w-32 h-32 bg-slate-50 rounded-full flex items-center justify-center mb-6 ring-4 ring-slate-50">
-                                    <MessageCircle className="w-16 h-16 text-slate-200" />
+                            <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-light)] p-8 hidden md:flex">
+                                <div className="w-32 h-32 bg-[var(--surface-bg)] rounded-full flex items-center justify-center mb-6 ring-4 ring-[var(--surface-bg)]">
+                                    <MessageCircle className="w-16 h-16 text-[var(--border-light)]" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-700 mb-2">Select a Conversation</h3>
-                                <p className="text-sm max-w-xs text-center text-slate-400">Choose a contact from the list to start a professional consultation.</p>
+                                <h3 className="text-xl font-bold text-[var(--text-main)] mb-2">Select a Conversation</h3>
+                                <p className="text-sm max-w-xs text-center text-[var(--text-muted)]">Choose a contact from the list to start a professional consultation.</p>
                             </div>
                         )}
                     </motion.div>

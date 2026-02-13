@@ -26,7 +26,7 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
             <Sidebar
                 title="Pharmacy Manager"
                 subtitle="Admin Dashboard"
-                logo={<Store className="w-5 h-5 text-white" />}
+                logo={<Store className="w-5 h-5 text-[var(--text-inverse)]" />}
                 items={navItems}
                 onSignOut={handleSignOut}
             />

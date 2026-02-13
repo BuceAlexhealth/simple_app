@@ -102,7 +102,7 @@ export function OrderCard({
               <Clock className="w-4 h-4 text-[var(--text-muted)]" />
               <div>
                 <p className="text-caption">Received</p>
-                <p className="text-sm font-medium text-main">
+                <p className="text-sm font-medium text-[var(--text-main)]">
                   {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -120,7 +120,7 @@ export function OrderCard({
               >
                 <div className="mb-4 p-4 bg-[var(--surface-bg)] rounded-xl border border-[var(--border)]">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="heading-sm text-main flex items-center gap-2">
+                    <h4 className="heading-sm text-[var(--text-main)] flex items-center gap-2">
                       <Package className="w-4 h-4 text-[var(--primary)]" />
                       Ordered Items
                     </h4>
@@ -142,7 +142,7 @@ export function OrderCard({
                           <div className="w-6 h-6 rounded bg-[var(--primary-light)] flex items-center justify-center text-primary text-badge font-semibold">
                             {index + 1}
                           </div>
-                          <span className="font-medium text-main text-truncate">
+                          <span className="font-medium text-[var(--text-main)] text-truncate">
                             {item.inventory?.name || `Product #${index + 1}`}
                           </span>
                         </div>

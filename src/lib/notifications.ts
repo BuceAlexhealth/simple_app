@@ -119,7 +119,7 @@ export const notifications = {
  */
 export const handleError = (error: unknown, context?: string) => {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-  
+
   // Log to console for debugging
   console.error(`Error${context ? ` in ${context}` : ''}:`, {
     error,
@@ -144,12 +144,12 @@ export const handleError = (error: unknown, context?: string) => {
  * Debounce utility function
  * Prevents excessive function calls
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
   let timeoutId: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
@@ -191,16 +191,16 @@ export const format = {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     const now = new Date();
     const diffMs = now.getTime() - dateObj.getTime();
-    
+
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffMinutes < 1) return 'Just now';
     if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-    
+
     return format.date(dateObj);
   },
 
@@ -211,12 +211,12 @@ export const format = {
     const units = ['B', 'KB', 'MB', 'GB'];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   },
 
@@ -260,23 +260,23 @@ export const validation = {
     errors: string[];
   } => {
     const errors: string[] = [];
-    
+
     if (password.length < FORM_CONFIG.MIN_PASSWORD_LENGTH) {
       errors.push(ERROR_MESSAGES.PASSWORD_TOO_SHORT);
     }
-    
+
     if (!/\d/.test(password)) {
       errors.push('Password must contain at least one number');
     }
-    
+
     if (!/[a-z]/.test(password)) {
       errors.push('Password must contain at least one lowercase letter');
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
-    
+
     return {
       isValid: errors.length === 0,
       errors,

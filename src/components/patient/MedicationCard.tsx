@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/contexts/CartContext";
+import { cn } from "@/lib/utils";
 
 interface MedicationCardProps {
   item: InventoryItem;
@@ -27,23 +28,23 @@ export const MedicationCard = React.memo<MedicationCardProps>(({ item }) => {
       <Card className="h-full flex flex-col group overflow-hidden border-[var(--border)] hover:border-[var(--primary)] transition-all duration-300 shadow-sm hover:shadow-xl bg-[var(--card-bg)]">
         <div className="p-5 flex-1 flex flex-col">
           <div className="mb-4 flex items-center justify-between">
-            <Badge variant="secondary" className="bg-[var(--primary-light)] text-primary border-none font-bold text-label-sm px-2 py-0.5 rounded-full">
+            <Badge variant="secondary" className="bg-[var(--border-light)] text-[var(--text-muted)] border-none font-bold text-label-sm px-2 py-0.5 rounded-full">
               <Store className="w-3 h-3 mr-1" />
               {item.profiles?.full_name || "Pharmacy"}
             </Badge>
-            <div className="text-price text-xl">
+            <div className="text-price text-xl text-[var(--text-main)]">
               ₹{item.price}
             </div>
           </div>
 
-          <h3 className="heading-lg text-main mb-1 text-clamp-1 text-hover-primary transition-colors" title={item.name}>
+          <h3 className="heading-lg text-[var(--text-main)] mb-1 text-clamp-1 hover:text-[var(--primary)] transition-colors" title={item.name}>
             {item.name}
           </h3>
 
           {(item.brand_name || item.form) && (
             <p className="text-label mb-3 flex items-center gap-1">
               {item.brand_name && <span>{item.brand_name}</span>}
-              {item.brand_name && item.form && <span className="text-[var(--primary)] opacity-50">•</span>}
+              {item.brand_name && item.form && <span className="text-[var(--text-light)]">•</span>}
               {item.form && <span>{item.form}</span>}
             </p>
           )}
@@ -106,7 +107,10 @@ export const MedicationCard = React.memo<MedicationCardProps>(({ item }) => {
                   >
                     <Button
                       variant={item.stock > 0 ? "gradient" : "outline"}
-                      className="w-full h-12 rounded-xl font-black uppercase text-label-sm gap-2"
+                      className={cn(
+                        "w-full h-12 rounded-xl font-black uppercase text-label-sm gap-2",
+                        item.stock > 0 && "text-white"
+                      )}
                       disabled={item.stock <= 0}
                       onClick={() => addToCart(item)}
                     >

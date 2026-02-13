@@ -22,9 +22,9 @@ import {
   useRealtimeAnalytics,
   MetricType,
   TimeRange,
-  isOrderEvent,
-  isRevenueEvent,
-  isInventoryEvent,
+  OrderEvent,
+  RevenueEvent,
+  InventoryEvent,
 } from "@/hooks/useRealtimeAnalytics";
 import {
   AnimatedBarChart,
@@ -69,9 +69,25 @@ export default function PharmacyAnalyticsPage() {
 
   const metrics = useMemo(() => aggregateMetrics(), [aggregateMetrics]);
 
+  const getCategoryColor = (key: string) => {
+    const colors = [
+      'hsl(210, 70%, 50%)',
+      'hsl(160, 70%, 50%)',
+      'hsl(30, 70%, 50%)',
+      'hsl(280, 70%, 50%)',
+      'hsl(45, 70%, 50%)',
+      'hsl(190, 70%, 50%)',
+    ];
+    const index = key.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
   // Transform data for charts with memoization
   const chartData = useMemo(() => {
-    const revenueData = streams.revenue.data.map((d: any, i: number) => ({
+    const revenueStreamData = streams.revenue.data as unknown as RevenueEvent['data'][];
+    const orderStreamData = streams.orders.data as unknown as OrderEvent['data'][];
+    
+    const revenueData = revenueStreamData.map((d, i: number) => ({
       value: d.current,
       label: i % 4 === 0 ? `${i}:00` : "",
     }));
@@ -79,28 +95,29 @@ export default function PharmacyAnalyticsPage() {
     const orderStatusData = [
       {
         label: "Completed",
-        value: streams.orders.data.filter((d: any) => d.status === "completed").length,
+        value: orderStreamData.filter((d) => d.status === "completed").length,
         color: "var(--success)",
       },
       {
         label: "Pending",
-        value: streams.orders.data.filter((d: any) => d.status === "pending").length,
+        value: orderStreamData.filter((d) => d.status === "pending").length,
         color: "var(--warning)",
       },
       {
         label: "Cancelled",
-        value: streams.orders.data.filter((d: any) => d.status === "cancelled").length,
+        value: orderStreamData.filter((d) => d.status === "cancelled").length,
         color: "var(--error)",
       },
     ];
 
-    const lastInventoryData = streams.inventory.data[streams.inventory.data.length - 1];
+    const inventoryStreamData = streams.inventory.data as unknown as InventoryEvent['data'][];
+    const lastInventoryData = inventoryStreamData[inventoryStreamData.length - 1];
     const inventoryCategories = lastInventoryData && 'categories' in lastInventoryData
       ? Object.entries(lastInventoryData.categories).map(
           ([key, value]) => ({
             label: key.charAt(0).toUpperCase() + key.slice(1),
             value: value as number,
-            color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+            color: getCategoryColor(key),
           })
         )
       : [];
@@ -193,7 +210,7 @@ export default function PharmacyAnalyticsPage() {
                       onClick={() => setTimeRange(range.value)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         timeRange === range.value
-                          ? "bg-[var(--primary)] text-white shadow-lg"
+                          ? "bg-[var(--primary)] text-[var(--text-inverse)] shadow-lg"
                           : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
                       }`}
                     >
@@ -248,7 +265,7 @@ export default function PharmacyAnalyticsPage() {
                   onClick={() => toggleMetric(metric.value)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                     isSelected
-                      ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-lg shadow-[var(--primary-glow)]"
+                      ? "bg-[var(--primary)] text-[var(--text-inverse)] border-[var(--primary)] shadow-lg shadow-[var(--primary-glow)]"
                       : "bg-[var(--surface-bg)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]"
                   }`}
                   whileHover={{ scale: 1.05 }}

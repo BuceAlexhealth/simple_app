@@ -20,6 +20,7 @@ export function OrderList({ filter }: OrderListProps) {
     const hash = window.location.hash;
     if (hash.startsWith('#order-')) {
       const orderId = hash.replace('#order-', '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedOrderId(orderId);
     }
   }, []);

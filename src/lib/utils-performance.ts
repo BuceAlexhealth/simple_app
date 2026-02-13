@@ -1,41 +1,45 @@
 // Utility function for debouncing to reduce CPU usage
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
   };
 }
 
+import { logger } from './logger';
+
 // Utility for safe localStorage operations
 export const storage = {
-  get: (key: string): any | null => {
+  get: <T>(key: string): T | null => {
     try {
-      const item = localStorage.getItem(key);
+      const item = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.warn('Error reading from localStorage:', error);
+      logger.warn('storage', 'Error reading from localStorage:', error);
       return null;
     }
   },
-  
-  set: (key: string, value: any): void => {
+
+  set: (key: string, value: unknown): void => {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
     } catch (error) {
-      console.warn('Error writing to localStorage:', error);
+      logger.warn('storage', 'Error writing to localStorage:', error);
     }
   },
-  
+
   remove: (key: string): void => {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.warn('Error removing from localStorage:', error);
+      logger.warn('storage', 'Error removing from localStorage:', error);
     }
   }
 };

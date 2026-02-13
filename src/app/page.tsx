@@ -59,17 +59,17 @@ export default function Home() {
         <div className="hidden lg:flex flex-col space-y-8 animate-in slide-in-from-left-4 duration-700">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]">
-              <Activity className="text-white w-7 h-7" />
+              <Activity className="text-[var(--text-inverse)] w-7 h-7" />
             </div>
-            <h1 className="heading-3xl text-main text-spacing-tight">PharmaPlus</h1>
+            <h1 className="heading-3xl text-[var(--text-main)] text-spacing-tight">PharmaPlus</h1>
           </div>
 
           <div className="space-y-4">
-            <h2 className="heading-3xl md:heading-3xl text-main text-spacing-tight leading-tight">
+            <h2 className="heading-3xl md:heading-3xl text-[var(--text-main)] text-spacing-tight leading-tight">
               Healthcare management <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-[var(--info)]">reimagined.</span>
             </h2>
-            <p className="text-lg text-muted max-w-md leading-relaxed">
+            <p className="text-lg text-[var(--text-muted)] max-w-md leading-relaxed">
               Connect with pharmacies, manage prescriptions, and track your health journey in one premium, secure platform.
             </p>
           </div>
@@ -100,7 +100,7 @@ export default function Home() {
         <Card variant="glass" className="w-full max-w-md mx-auto shadow-2xl border-[var(--border-light)] animate-in slide-in-from-bottom-4 duration-700">
           <CardHeader className="text-center pb-2">
             <div className="lg:hidden mx-auto mb-4 w-12 h-12 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center shadow-lg">
-              <Activity className="text-white w-6 h-6" />
+              <Activity className="text-[var(--text-inverse)] w-6 h-6" />
             </div>
               <CardTitle className="heading-xl mb-1">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
             <CardDescription>

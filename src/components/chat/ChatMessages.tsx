@@ -4,11 +4,29 @@ import { motion } from "framer-motion";
 import { Check, CheckCheck } from "lucide-react";
 import { OrderBubble } from "./OrderBubble";
 
+interface Message {
+  id: number | string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+}
+
+interface User {
+  id: string;
+}
+
+interface Connection {
+  id: string;
+  full_name?: string;
+}
+
 interface ChatMessagesProps {
-  messages: any[];
-  currentUser: any;
+  messages: Message[];
+  currentUser: User;
   role: 'patient' | 'pharmacy';
-  selectedConnection: any;
+  selectedConnection: Connection;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -54,7 +72,7 @@ export function ChatMessages({
                 ) : null}
                 {msg.content && msg.content !== "Sent an image" && (
                   <div className={`px-4 py-2.5 text-sm leading-relaxed shadow-sm ${isMe
-                    ? 'bg-[var(--primary)] text-white rounded-2xl rounded-tr-sm'
+                    ? 'bg-[var(--primary)] text-[var(--text-inverse)] rounded-2xl rounded-tr-sm'
                     : 'bg-[var(--card-bg)] text-[var(--text-main)] border border-[var(--border)] rounded-2xl rounded-tl-sm'
                     }`}>
                     {msg.content}

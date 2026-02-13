@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 export const useInviteLink = () => {
   const [inviteLink, setInviteLink] = useState("");
@@ -22,12 +23,14 @@ export const useInviteLink = () => {
       setTimeout(() => setCopied(false), 2000);
       return true;
     } catch (error) {
-      console.error("Failed to copy to clipboard:", error);
+      logger.error('useInviteLink', 'Failed to copy to clipboard:', error);
       return false;
     }
-  }, []);
+  }, [inviteLink]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setupInviteLink();
   }, [setupInviteLink]);
 

@@ -4,12 +4,17 @@ import { Search, Store, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/Input";
 
+interface Connection {
+  id: string;
+  full_name?: string;
+}
+
 interface ChatSidebarProps {
-  connections: any[];
-  selectedConnection: any;
+  connections: Connection[];
+  selectedConnection: Connection | null;
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  onConnectionSelect: (connection: any) => void;
+  onConnectionSelect: (connection: Connection) => void;
   role: 'patient' | 'pharmacy';
   isMobile: boolean;
 }
@@ -73,7 +78,7 @@ export function ChatSidebar({
                   }`}
               >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-colors shrink-0 ${selectedConnection?.id === conn.id
-                  ? 'bg-[var(--primary)] text-white'
+                  ? 'bg-[var(--primary)] text-[var(--text-inverse)]'
                   : 'bg-[var(--surface-bg)] border border-[var(--border)] text-[var(--text-muted)] group-hover:border-[var(--primary)]'
                   }`}>
                   {conn.full_name?.[0]?.toUpperCase() || itemIcon}

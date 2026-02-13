@@ -14,7 +14,7 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
         success: "badge-success",
         warning: "badge-warning",
         primary: "badge-primary",
-        gradient: "gradient-primary text-white border-none shadow-sm",
+        gradient: "gradient-primary text-[var(--text-inverse)] border-none shadow-sm",
     };
 
     return (

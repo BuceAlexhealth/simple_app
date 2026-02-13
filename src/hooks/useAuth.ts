@@ -4,24 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-
-// Simplified auth types
-interface Profile {
-  id: string;
-  role: 'patient' | 'pharmacist';
-  full_name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  date_of_birth?: string;
-  avatar_url?: string;
-}
-
-interface AuthUser {
-  id: string;
-  email?: string;
-  created_at?: string;
-}
+import { Profile, AuthUser } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
+import { logger } from "@/lib/logger";
 
 // Auth state helper functions
 const getSession = async () => {
@@ -36,7 +21,7 @@ const getUser = async () => {
 
 const fetchProfile = async (userId: string): Promise<Profile | null> => {
   try {
-    console.log('Fetching profile for user ID:', userId);
+    logger.debug('useAuth', 'Fetching profile for user ID:', userId);
     const { data, error } = await supabase
       .from('profiles')
       .select('id, role, full_name, email, phone, address, date_of_birth, avatar_url')
@@ -44,24 +29,23 @@ const fetchProfile = async (userId: string): Promise<Profile | null> => {
       .single();
 
     if (error) {
-      // Profile fetch failed (table may not exist or no profile row)
-      // Silently return null - app will fall back to user metadata
+      logger.warn('useAuth', 'Profile fetch failed:', error.message);
       return null;
     }
 
-    console.log('Profile data found:', data); // Debug log
+    logger.debug('useAuth', 'Profile data found:', data);
     return data as Profile;
   } catch (err) {
-    console.error('Profile fetch unexpected error:', err);
+    logger.error('useAuth', 'Profile fetch unexpected error', err);
     return null;
   }
 };
 
 // React Query key for user data
 export const userKeys = {
-  user: ['user'] as const,
-  profile: (userId: string) => ['profile', userId] as const,
-  session: ['session'] as const,
+  user: queryKeys.user,
+  profile: queryKeys.profile,
+  session: queryKeys.session,
 };
 
 // Main auth hook
@@ -102,35 +86,31 @@ export function useAuth() {
     },
     onSuccess: async (data) => {
       if (data.user) {
-        console.log('Login successful for user:', data.user.email);
-        console.log('User metadata:', data.user.user_metadata);
+        logger.info('useAuth', 'Login successful for user:', data.user.email);
+        logger.debug('useAuth', 'User metadata:', data.user.user_metadata);
         
-        // Invalidate and refetch user data
         queryClient.invalidateQueries({ queryKey: userKeys.user });
         const profileData = await fetchProfile(data.user.id);
         
-        // Get role from user metadata
         const userRole = data.user.user_metadata?.role || 'patient';
-        console.log('Profile data:', profileData);
-        console.log('User role from metadata:', userRole);
+        logger.debug('useAuth', 'Profile data:', profileData);
+        logger.debug('useAuth', 'User role from metadata:', userRole);
         
-        // Normalize role to lowercase for consistent comparison
         const normalizedProfileRole = profileData?.role?.toLowerCase();
         const normalizedUserRole = userRole?.toLowerCase();
         
         if (profileData) {
           queryClient.setQueryData(userKeys.profile(data.user.id), profileData);
           toast.success("Welcome back!");
-          console.log('Profile role (normalized):', normalizedProfileRole);
+          logger.debug('useAuth', 'Profile role (normalized):', normalizedProfileRole);
           const redirectPath = normalizedProfileRole === "pharmacist" ? "/pharmacy" : "/patient";
-          console.log('Redirecting to:', redirectPath);
+          logger.debug('useAuth', 'Redirecting to:', redirectPath);
           router.replace(redirectPath);
         } else {
-          // Use role from metadata when profile doesn't exist
           toast.success("Welcome back!");
-          console.log('No profile found, user role (normalized):', normalizedUserRole);
+          logger.debug('useAuth', 'No profile found, user role (normalized):', normalizedUserRole);
           const redirectPath = normalizedUserRole === "pharmacist" ? "/pharmacy" : "/patient";
-          console.log('Redirecting to:', redirectPath);
+          logger.debug('useAuth', 'Redirecting to:', redirectPath);
           router.replace(redirectPath);
         }
       }

@@ -30,7 +30,7 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
             <Sidebar
                 title="Patient Portal"
                 subtitle="Health Services"
-                logo={<User className="w-5 h-5 text-white" />}
+                logo={<User className="w-5 h-5 text-[var(--text-inverse)]" />}
                 items={navItems}
                 onSignOut={handleSignOut}
             />

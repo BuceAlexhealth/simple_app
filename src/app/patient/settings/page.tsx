@@ -13,10 +13,8 @@ import {
   Save,
   Loader2,
   Camera,
-  Mail,
   Phone,
   MapPin,
-  Shield,
   Trash2,
   Settings,
 } from "lucide-react";
@@ -91,9 +89,10 @@ export default function PatientSettingsPage() {
       date_of_birth: data?.date_of_birth || "",
       avatar_url: data?.avatar_url || "",
     });
-  }, [user?.id, profile?.full_name]);
+  }, [user, profile]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProfile();
   }, [loadProfile]);
 
@@ -198,7 +197,9 @@ export default function PatientSettingsPage() {
     setSaving(false);
   };
 
-  const tabs = [
+  type TabId = "profile" | "security" | "notifications";
+  
+  const tabs: { id: TabId; label: string; icon: typeof User }[] = [
     { id: "profile", label: "Profile", icon: User },
     { id: "security", label: "Security", icon: Lock },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -246,10 +247,10 @@ export default function PatientSettingsPage() {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
+                      onClick={() => setActiveTab(tab.id)}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
                         activeTab === tab.id
-                          ? "bg-[var(--primary)] text-white shadow-md"
+                          ? "bg-[var(--primary)] text-[var(--text-inverse)] shadow-md"
                           : "text-[var(--text-muted)] hover:bg-[var(--surface-bg)] hover:text-[var(--text-main)]"
                       }`}
                     >
@@ -285,7 +286,7 @@ export default function PatientSettingsPage() {
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-white text-2xl font-bold">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center text-[var(--text-inverse)] text-2xl font-bold">
                       {(profileData.full_name || "P").charAt(0)?.toUpperCase() || "P"}
                     </div>
                     <div>

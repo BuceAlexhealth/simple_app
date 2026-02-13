@@ -2,19 +2,38 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Store, ShoppingCart, Check, ExternalLink, Clock, AlertCircle, Package } from "lucide-react";
+import { Store, Check, ExternalLink, Clock, AlertCircle, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { parseOrderMessage, getOrderActions, getOrderBubbleStyles, formatOrderDisplay, type ParsedOrderData } from "@/services/orderService";
+import { parseOrderMessage, getOrderActions, getOrderBubbleStyles, formatOrderDisplay } from "@/services/orderService";
+import type { ParsedOrderData } from "@/services/orderService";
 import { format, notifications } from "@/lib/notifications";
 import { Loader2 } from "lucide-react";
 
+interface Message {
+  id: number | string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  image_url?: string;
+  created_at: string;
+}
+
+interface User {
+  id: string;
+}
+
+interface Connection {
+  id: string;
+  full_name?: string;
+}
+
 interface OrderBubbleProps {
-  msg: any;
+  msg: Message;
   role: 'patient' | 'pharmacy';
-  currentUser: any;
-  selectedConnection: any;
+  currentUser: User;
+  selectedConnection: Connection;
   onOrderAction?: (orderId: string, action: string) => void;
 }
 
