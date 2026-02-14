@@ -21,8 +21,8 @@ export function PageContainer({ children, className = "" }: PageContainerProps) 
 }
 
 interface PageHeaderProps {
-  icon: LucideIcon;
-  label: string;
+  icon?: LucideIcon;
+  label?: string;
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
@@ -32,10 +32,12 @@ export function PageHeader({ icon: Icon, label, title, subtitle, children }: Pag
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className="w-5 h-5 text-[var(--primary)]" />
-          <span className="text-sm font-medium text-[var(--primary)]">{label}</span>
-        </div>
+        {(Icon || label) && (
+          <div className="flex items-center gap-2 mb-2">
+            {Icon && <Icon className="w-5 h-5 text-[var(--primary)]" />}
+            {label && <span className="text-sm font-medium text-[var(--primary)]">{label}</span>}
+          </div>
+        )}
         <h1 className="text-3xl font-bold text-[var(--text-main)]">{title}</h1>
         {subtitle && <p className="text-[var(--text-muted)] mt-1">{subtitle}</p>}
       </div>

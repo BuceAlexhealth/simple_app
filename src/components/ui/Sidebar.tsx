@@ -13,6 +13,7 @@ interface SidebarItem {
     icon: LucideIcon;
     label: string;
     href: string;
+    showBadge?: boolean;
 }
 
 interface SidebarProps {
@@ -22,6 +23,7 @@ interface SidebarProps {
     items: SidebarItem[];
     onSignOut?: () => void;
     className?: string;
+    rightHeaderContent?: React.ReactNode;
 }
 
 interface SidebarContentProps {
@@ -31,24 +33,32 @@ interface SidebarContentProps {
     items: SidebarItem[];
     activeHref: string | undefined;
     onSignOut?: () => void;
+    rightHeaderContent?: React.ReactNode;
 }
 
-const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }: SidebarContentProps) => (
+const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut, rightHeaderContent }: SidebarContentProps) => (
     <div className="flex flex-col h-full bg-[var(--card-bg)]">
         {/* Header */}
         <div className="p-6 pb-4 border-b border-[var(--border)]">
-            <div className="flex items-center gap-3">
-                <div className="relative">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center text-[var(--text-inverse)] shadow-lg">
-                        {logo}
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="relative">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] rounded-xl flex items-center justify-center text-[var(--text-inverse)] shadow-lg">
+                            {logo}
+                        </div>
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="font-semibold text-lg text-[var(--text-main)] leading-tight truncate">
+                            {title}
+                        </h1>
+                        {subtitle && <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>}
                     </div>
                 </div>
-                <div className="min-w-0">
-                    <h1 className="font-semibold text-lg text-[var(--text-main)] leading-tight truncate">
-                        {title}
-                    </h1>
-                    {subtitle && <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</p>}
-                </div>
+                {rightHeaderContent && (
+                    <div className="flex-shrink-0">
+                        {rightHeaderContent}
+                    </div>
+                )}
             </div>
         </div>
 
@@ -66,7 +76,7 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
                     >
                         <motion.div
                             className={cn(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative",
                                 isActive
                                     ? "bg-[var(--primary)] text-[var(--text-inverse)] shadow-md"
                                     : "text-[var(--text-muted)] hover:bg-[var(--surface-bg)] hover:text-[var(--text-main)]"
@@ -79,6 +89,9 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
                                 isActive ? "text-[var(--text-inverse)]" : "text-[var(--text-muted)]"
                             )} />
                             <span className="font-medium text-sm">{item.label}</span>
+                            {item.showBadge && (
+                                <span className="absolute right-3 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            )}
                             {isActive && (
                                 <motion.div
                                     layoutId="active-indicator"
@@ -110,7 +123,7 @@ const SidebarContent = ({ title, subtitle, logo, items, activeHref, onSignOut }:
     </div>
 );
 
-export function Sidebar({ title, subtitle, logo, items, onSignOut, className }: SidebarProps) {
+export function Sidebar({ title, subtitle, logo, items, onSignOut, className, rightHeaderContent }: SidebarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 
@@ -127,7 +140,7 @@ export function Sidebar({ title, subtitle, logo, items, onSignOut, className }: 
         .filter(item => pathname === item.href || pathname?.startsWith(`${item.href}/`))
         .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
-    const commonProps = { title, subtitle, logo, items, activeHref, onSignOut };
+    const commonProps = { title, subtitle, logo, items, activeHref, onSignOut, rightHeaderContent };
 
     return (
         <>

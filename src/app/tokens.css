@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+/* Theme-aware CSS variables are set by ThemeContext */
+
+:root {
+  /* Font Family */
+  --font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+
+  /* Font Weight Scale - Semantic */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ============================================
+     LIGHT THEME - Backgrounds
+     ============================================ */
+  --app-bg: #F8FAFC;
+  --surface-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --overlay-bg: rgba(255, 255, 255, 0.95);
+
+  /* ============================================
+     LIGHT THEME - Text Colors
+     ============================================ */
+  --text-main: #1A1F36;
+  --text-muted: #64748B;
+  --text-light: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  /* ============================================
+     LIGHT THEME - Primary Colors (Teal)
+     ============================================ */
+  --primary: #0D9488;
+  --primary-dark: #0F766E;
+  --primary-light: #CCFBF1;
+  --primary-glow: rgba(13, 148, 136, 0.15);
+
+  /* ============================================
+     LIGHT THEME - Status Colors
+     ============================================ */
+  /* Success */
+  --success: #059669;
+  --success-500: #10B981;
+  --success-600: #059669;
+  --success-bg: #ECFDF5;
+  --success-dark: #047857;
+  --success-light: #D1FAE5;
+  --success-glow: rgba(16, 185, 129, 0.3);
+
+  /* Error */
+  --error: #DC2626;
+  --error-500: #EF4444;
+  --error-600: #DC2626;
+  --error-bg: #FEF2F2;
+  --error-dark: #B91C1C;
+  --error-glow: rgba(239, 68, 68, 0.3);
+
+  /* Warning */
+  --warning: #D97706;
+  --warning-500: #F59E0B;
+  --warning-600: #D97706;
+  --warning-bg: #FFFBEB;
+  --warning-light: #FEF3C7;
+  --warning-glow: rgba(245, 158, 11, 0.3);
+
+  /* Info */
+  --info: #0891B2;
+  --info-bg: #F0F9FF;
+
+  /* ============================================
+     LIGHT THEME - Neutral Colors
+     ============================================ */
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --border-subtle: #F9FAFB;
+  --neutral: #6B7280;
+  --neutral-bg: #F9FAFB;
+
+  /* ============================================
+     LIGHT THEME - Shadow System
+     ============================================ */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.16);
+  --shadow-primary: 0 4px 20px rgba(13, 148, 136, 0.15);
+
+  /* ============================================
+     LIGHT THEME - Gradients
+     ============================================ */
+  --gradient-primary: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
+  --gradient-surface: linear-gradient(135deg, #FAFBFC 0%, #F3F4F6 100%);
+  --gradient-card: linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%);
+
+  /* ============================================
+     LIGHT THEME - Effects
+     ============================================ */
+  --blur-sm: blur(8px);
+  --blur-md: blur(16px);
+  --blur-lg: blur(24px);
+
+  /* ============================================
+     LIGHT THEME - Border Radius
+     ============================================ */
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+}
+
+/* ============================================
+   DARK THEME - Override Variables
+   ============================================ */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --app-bg: #0F172A;
+  --surface-bg: #1E293B;
+  --card-bg: #1F2937;
+  --overlay-bg: rgba(15, 23, 42, 0.95);
+
+  /* Text Colors */
+  --text-main: #FFFFFF;
+  --text-muted: #A1A1AA;
+  --text-light: #71717A;
+  --text-inverse: #1A1F36;
+
+  /* Primary Colors */
+  --primary: #14B8A6;
+  --primary-dark: #0D9488;
+  --primary-light: rgba(20, 184, 166, 0.15);
+  --primary-glow: rgba(20, 184, 166, 0.25);
+
+  /* Success */
+  --success: #10B981;
+  --success-500: #10B981;
+  --success-600: #34D399;
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --success-dark: #34D399;
+  --success-light: rgba(16, 185, 129, 0.1);
+  --success-glow: rgba(16, 185, 129, 0.3);
+
+  /* Error */
+  --error: #EF4444;
+  --error-500: #EF4444;
+  --error-600: #F87171;
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-dark: #F87171;
+  --error-glow: rgba(239, 68, 68, 0.3);
+
+  /* Warning */
+  --warning: #F59E0B;
+  --warning-500: #F59E0B;
+  --warning-600: #FBBF24;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --warning-light: rgba(245, 158, 11, 0.1);
+  --warning-glow: rgba(245, 158, 11, 0.3);
+
+  /* Info */
+  --info: #06B6D4;
+  --info-bg: rgba(6, 182, 212, 0.1);
+
+  /* Neutral Colors */
+  --border: #2A2D3A;
+  --border-light: #373A4A;
+  --border-subtle: #1F222D;
+  --neutral: #9CA3AF;
+  --neutral-bg: #1A1D29;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 16px 64px rgba(0, 0, 0, 0.55);
+  --shadow-primary: 0 4px 20px rgba(20, 184, 166, 0.25);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+  --gradient-surface: linear-gradient(135deg, #0F0F14 0%, #1A1D29 100%);
+  --gradient-card: linear-gradient(135deg, #23262F 0%, #2A2D3A 100%);
+
+  /* Effects */
+  --blur-sm: blur(8px);
+  --blur-md: blur(16px);
+  --blur-lg: blur(24px);
+
+  /* Dark Mode Specific */
+  --text-contrast: #FFFFFF;
+  --border-glow: rgba(59, 130, 246, 0.3);
+}

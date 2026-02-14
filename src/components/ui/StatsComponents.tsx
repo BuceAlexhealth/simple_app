@@ -7,6 +7,8 @@ interface StatItem {
   label: string;
   value: string | number;
   color?: "default" | "success" | "warning" | "error";
+  active?: boolean;
+  onClick?: () => void;
 }
 
 interface StatsGridProps {
@@ -31,8 +33,14 @@ export function StatsGrid({ stats, columns = 4 }: StatsGridProps) {
   return (
     <div className={`grid ${gridCols[columns]} gap-4`}>
       {stats.map((stat, index) => (
-        <Card key={index}>
-          <CardContent className="p-4">
+        <Card 
+          key={index} 
+          className={`${stat.onClick ? "cursor-pointer hover:border-[var(--primary)] transition-colors" : ""} ${stat.active ? "border-[var(--primary)] ring-1 ring-[var(--primary)]" : ""}`}
+        >
+          <CardContent 
+            className="p-4" 
+            onClick={stat.onClick}
+          >
             <p className="text-sm text-[var(--text-muted)]">{stat.label}</p>
             <p className={`text-2xl font-bold ${colorClasses[stat.color || "default"]}`}>
               {stat.value}

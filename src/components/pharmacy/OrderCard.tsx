@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCircle2, Clock, Package, X, ArrowRight, MessageSquare, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Order, OrderStatus } from "@/types";
+import { Order, OrderStatus, InitiatorType } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { OrderPreparationModal } from "./OrderPreparationModal";
+import { getOrderBadgeVariant, getOrderStatusText, getOrderTimeline } from "@/lib/order-status";
 
 interface OrderItem {
   id: string;
@@ -27,6 +30,59 @@ interface OrderCardProps {
   onUpdateStatus: (orderId: string, newStatus: OrderStatus) => void;
 }
 
+function OrderProgressStepper({ status }: { status: OrderStatus }) {
+  const timeline = getOrderTimeline(status);
+  const currentIndex = timeline.findIndex(t => t.current);
+
+  return (
+    <div className="flex items-center gap-1">
+      {timeline.map((step, index) => (
+        <div key={step.status} className="flex items-center">
+          <div
+            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
+              step.completed
+                ? 'bg-[var(--success-500)] text-white'
+                : index === currentIndex
+                ? 'bg-[var(--primary)] text-white'
+                : 'bg-[var(--surface-bg)] text-[var(--text-muted)] border border-[var(--border)]'
+            }`}
+          >
+            {step.completed ? (
+              <CheckCircle2 className="w-3 h-3" />
+            ) : (
+              <span>{index + 1}</span>
+            )}
+          </div>
+          {index < timeline.length - 1 && (
+            <div
+              className={`w-6 h-0.5 mx-1 ${
+                step.completed ? 'bg-[var(--success-500)]' : 'bg-[var(--border)]'
+              }`}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function getBadgeVariant(status: OrderStatus, initiatorType?: InitiatorType) {
+  return getOrderBadgeVariant(status, initiatorType);
+}
+
+function getStatusText(order: Order) {
+  return getOrderStatusText(order.status, order.initiator_type);
+}
+
+function getStatusIcon(status: OrderStatus) {
+  switch (status) {
+    case 'placed': return <Clock className="w-3 h-3" />;
+    case 'ready': return <Package className="w-3 h-3" />;
+    case 'complete': return <CheckCircle2 className="w-3 h-3" />;
+    default: return null;
+  }
+}
+
 export function OrderCard({
   order,
   items,
@@ -34,36 +90,7 @@ export function OrderCard({
   onToggleExpand,
   onUpdateStatus
 }: OrderCardProps) {
-  const getBadgeVariant = (status: OrderStatus, initiatorType?: string) => {
-    if (initiatorType === 'pharmacy' && status === 'placed') {
-      return "secondary";
-    }
-
-    switch (status) {
-      case 'placed': return "warning";
-      case 'ready': return "default";
-      case 'complete': return "success";
-      case 'cancelled': return "destructive";
-      default: return "secondary";
-    }
-  };
-
-  const getOrderStatusText = (order: Order) => {
-    if (order.initiator_type === 'pharmacy') {
-      if (order.status === 'placed') return 'Waiting';
-      if (order.status === 'cancelled') return 'Rejected';
-    }
-    return order.status.charAt(0).toUpperCase() + order.status.slice(1);
-  };
-
-  const getStatusIcon = (status: OrderStatus) => {
-    switch (status) {
-      case 'placed': return <Clock className="w-3 h-3" />;
-      case 'ready': return <Package className="w-3 h-3" />;
-      case 'complete': return <CheckCircle2 className="w-3 h-3" />;
-      default: return null;
-    }
-  };
+  const [showPreparation, setShowPreparation] = useState(false);
 
   return (
     <motion.div
@@ -77,21 +104,25 @@ export function OrderCard({
         order.status === 'ready' ? 'card-border-primary' :
         'card-border-warning'
       }`}>
-        <CardContent className="p-5">
-          {/* Header */}
+        <CardContent className="p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-mono-sm bg-[var(--surface-bg)] text-muted px-2 py-0.5 rounded">
                   #{order.id.slice(0, 8)}
                 </span>
-                <Badge variant={getBadgeVariant(order.status, order.initiator_type)} className="text-xs">
+                {order.initiator_type !== 'pharmacy' && order.patient?.full_name && (
+                  <span className="text-sm text-[var(--text-muted)]">
+                    {order.patient.full_name}
+                  </span>
+                )}
+                <Badge variant={getBadgeVariant(order.status, order.initiator_type as InitiatorType)} className="text-xs">
                   {getStatusIcon(order.status)}
-                  <span className="ml-1">{getOrderStatusText(order)}</span>
+                  <span className="ml-1">{getStatusText(order)}</span>
                 </Badge>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-price text-2xl">
+                <span className="text-price text-lg">
                   ₹{order.total_price.toFixed(2)}
                 </span>
                 <span className="text-caption">Total</span>
@@ -109,7 +140,10 @@ export function OrderCard({
             </div>
           </div>
 
-          {/* Expanded Content */}
+          <div className="mb-4">
+            <OrderProgressStepper status={order.status} />
+          </div>
+
           <AnimatePresence>
             {isExpanded && (
               <motion.div
@@ -169,7 +203,6 @@ export function OrderCard({
             )}
           </AnimatePresence>
 
-          {/* Actions */}
           <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-[var(--border)]">
             <Button
               variant="ghost"
@@ -192,10 +225,10 @@ export function OrderCard({
               {order.status === 'placed' && order.initiator_type !== 'pharmacy' && (
                 <Button
                   size="sm"
-                  onClick={() => onUpdateStatus(order.id, 'ready')}
+                  onClick={() => setShowPreparation(true)}
                 >
                   <Package className="w-4 h-4 mr-1.5" />
-                  Mark Ready
+                  Prepare Order
                 </Button>
               )}
               
@@ -220,6 +253,14 @@ export function OrderCard({
           </div>
         </CardContent>
       </Card>
+
+      <OrderPreparationModal
+        isOpen={showPreparation}
+        onClose={() => setShowPreparation(false)}
+        order={order}
+        items={items}
+        onFulfillmentComplete={() => onUpdateStatus(order.id, 'ready')}
+      />
     </motion.div>
   );
 }
