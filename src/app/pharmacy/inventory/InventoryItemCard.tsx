@@ -434,17 +434,15 @@ function InventoryItemCardBase({
 
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-2 flex-shrink-0">
-                    {batchCount > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowBatches(!showBatches)}
-                            className={`h-10 rounded-lg gap-1 transition-colors ${showBatches ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)]'}`}
-                        >
-                            <Layers className="w-4 h-4" />
-                            <span className="hidden sm:inline">{showBatches ? 'Hide' : 'Batches'}</span>
-                        </Button>
-                    )}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowBatches(!showBatches)}
+                        className={`h-10 rounded-lg gap-1 transition-colors ${showBatches ? 'bg-[var(--primary-light)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)]'}`}
+                    >
+                        <Layers className="w-4 h-4" />
+                        <span className="hidden sm:inline">{showBatches ? 'Hide' : 'Batches'}</span>
+                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"
@@ -463,51 +461,6 @@ function InventoryItemCardBase({
                     </Button>
                 </div>
             </div>
-
-            {/* Batch Status Summary Row */}
-            {batchCount > 0 && (
-                <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]/50">
-                    {(() => {
-                        const statuses = {
-                            active: 0,
-                            expiring: 0,
-                            expired: 0,
-                            depleted: 0
-                        };
-                        batchDetails.forEach(b => {
-                            statuses[getBatchStatus(b)]++;
-                        });
-                        return (
-                            <>
-                                {statuses.active > 0 && (
-                                    <span className="flex items-center gap-1 text-xs text-[var(--success)]">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
-                                        {statuses.active} active
-                                    </span>
-                                )}
-                                {statuses.expiring > 0 && (
-                                    <span className="flex items-center gap-1 text-xs text-[var(--warning)]">
-                                        <Clock className="w-3 h-3" />
-                                        {statuses.expiring} expiring
-                                    </span>
-                                )}
-                                {statuses.expired > 0 && (
-                                    <span className="flex items-center gap-1 text-xs text-[var(--error)]">
-                                        <AlertTriangle className="w-3 h-3" />
-                                        {statuses.expired} expired
-                                    </span>
-                                )}
-                                {statuses.depleted > 0 && (
-                                    <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]" />
-                                        {statuses.depleted} depleted
-                                    </span>
-                                )}
-                            </>
-                        );
-                    })()}
-                </div>
-            )}
 
             {/* Expandable Batch Details - Full Width */}
             <AnimatePresence>

@@ -111,10 +111,20 @@ export function OrderCard({
                 <span className="text-mono-sm bg-[var(--surface-bg)] text-muted px-2 py-0.5 rounded">
                   #{order.id.slice(0, 8)}
                 </span>
-                {order.initiator_type !== 'pharmacy' && order.patient?.full_name && (
-                  <span className="text-sm text-[var(--text-muted)]">
-                    {order.patient.full_name}
-                  </span>
+                {order.is_walkin ? (
+                  order.walkin_name ? (
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {order.walkin_name}
+                    </span>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">Walk-in</Badge>
+                  )
+                ) : (
+                  order.initiator_type !== 'pharmacy' && order.patient?.full_name && (
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {order.patient.full_name}
+                    </span>
+                  )
                 )}
                 <Badge variant={getBadgeVariant(order.status, order.initiator_type as InitiatorType)} className="text-xs">
                   {getStatusIcon(order.status)}

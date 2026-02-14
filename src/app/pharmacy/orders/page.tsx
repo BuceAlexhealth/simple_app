@@ -9,7 +9,7 @@ import { OrderFilters } from "@/components/pharmacy/OrderFilters";
 import { OrderList } from "@/components/pharmacy/OrderList";
 
 export default function PharmacyOrdersPage() {
-    const [orderFilter, setOrderFilter] = useState<'all' | 'patient' | 'pharmacy'>('all');
+    const [orderFilter, setOrderFilter] = useState<'all' | 'patient' | 'pharmacy' | 'walkin'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');

@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Store, ClipboardList, Package, MessageCircle, Settings, Home } from "lucide-react";
+import { Store, ClipboardList, Package, MessageCircle, Settings, Home, FileText, ShoppingCart } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
@@ -20,6 +20,8 @@ export default function PharmacyLayout({ children }: { children: ReactNode }) {
     const navItems = [
         { label: "Home", href: "/pharmacy/home", icon: Home },
         { label: "Orders", href: "/pharmacy/orders", icon: ClipboardList, showBadge: pendingCount > 0 },
+        { label: "Walk-in Sales", href: "/pharmacy/walkin", icon: ShoppingCart },
+        { label: "Invoices", href: "/pharmacy/invoices", icon: FileText },
         { label: "Inventory", href: "/pharmacy/inventory", icon: Package },
         { label: "Chats", href: "/pharmacy/chats", icon: MessageCircle },
         { label: "Account", href: "/pharmacy/account", icon: Settings },

@@ -10,7 +10,9 @@ import {
   BatchMovementType,
   UserRole,
   FulfillmentStatus,
-  OrderFulfillment
+  OrderFulfillment,
+  Invoice,
+  InvoiceStatus
 } from "@/types";
 import { SupabaseError } from "@/types/supabase";
 
@@ -96,6 +98,12 @@ export class OrdersRepository extends BaseRepository {
    */
   async updateOrderStatus(orderId: string, status: OrderStatus, additionalData: Record<string, unknown> = {}): Promise<Order> {
     try {
+      const { data: existingOrder } = await this.supabase
+        .from('orders')
+        .select('invoice_id, is_walkin')
+        .eq('id', orderId)
+        .single();
+
       const { data, error } = await this.supabase
         .from("orders")
         .update({
@@ -107,6 +115,12 @@ export class OrdersRepository extends BaseRepository {
         .single();
 
       if (error) throw error;
+
+      if (status === 'complete' && !existingOrder?.invoice_id && !existingOrder?.is_walkin) {
+        const invoicesRepo = new InvoicesRepository(this.supabase);
+        await invoicesRepo.createInvoice(orderId);
+      }
+
       return data;
     } catch (error) {
       this.handleError(error, 'updateOrderStatus', { orderId, status });
@@ -118,6 +132,7 @@ export class OrdersRepository extends BaseRepository {
    */
   async getOrdersByUserId(userId: string, userRole: UserRole = 'patient', filters: {
     initiatorType?: InitiatorType;
+    isWalkin?: boolean;
     status?: OrderStatus;
     limit?: number;
     offset?: number;
@@ -148,6 +163,10 @@ export class OrdersRepository extends BaseRepository {
         query = query.eq("initiator_type", filters.initiatorType);
       }
 
+      if (filters.isWalkin !== undefined) {
+        query = query.eq("is_walkin", filters.isWalkin);
+      }
+
       if (filters.status) {
         query = query.eq("status", filters.status);
       }
@@ -164,7 +183,7 @@ export class OrdersRepository extends BaseRepository {
 
       if (filters.searchQuery) {
         const searchTerm = `%${filters.searchQuery}%`;
-        query = query.or(`id.ilike.${searchTerm},patient_id.ilike.${searchTerm}`);
+        query = query.or(`id.ilike.${searchTerm},patient_id.ilike.${searchTerm},walkin_name.ilike.${searchTerm}`);
       }
 
       if (filters.limit) {
@@ -187,10 +206,11 @@ export class OrdersRepository extends BaseRepository {
         orders = orders.filter((order: Order & { order_items: Array<{ inventory?: { name?: string } }> }) => {
           const orderIdMatch = order.id.toLowerCase().includes(searchLower);
           const patientIdMatch = order.patient_id?.toLowerCase().includes(searchLower);
+          const walkinNameMatch = order.walkin_name?.toLowerCase().includes(searchLower);
           const itemNameMatch = order.order_items?.some(
             (item) => item.inventory?.name?.toLowerCase().includes(searchLower)
           );
-          return orderIdMatch || patientIdMatch || itemNameMatch;
+          return orderIdMatch || patientIdMatch || walkinNameMatch || itemNameMatch;
         });
       }
 
@@ -246,6 +266,78 @@ export class OrdersRepository extends BaseRepository {
       return data; // Returns order_id
     } catch (error) {
       this.handleError(error, 'processPharmacyOrder', orderData);
+    }
+  }
+
+  async createWalkinOrder(orderData: {
+    pharmacy_id: string;
+    items: {
+      inventory_id: string;
+      quantity: number;
+      price: number;
+    }[];
+    total_price: number;
+    walkin_name?: string;
+    walkin_phone?: string;
+    notes?: string;
+  }): Promise<{ order: Order; invoice: Invoice }> {
+    try {
+      const { data: order, error } = await this.supabase
+        .from('orders')
+        .insert({
+          pharmacy_id: orderData.pharmacy_id,
+          patient_id: null,
+          total_price: orderData.total_price,
+          status: 'complete',
+          initiator_type: 'pharmacy',
+          is_walkin: true,
+          walkin_name: orderData.walkin_name || null,
+          walkin_phone: orderData.walkin_phone || null,
+          pharmacy_notes: orderData.notes || null,
+          fulfillment_status: 'completed'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (order && orderData.items.length > 0) {
+        const orderItems = orderData.items.map(item => ({
+          order_id: order.id,
+          inventory_id: item.inventory_id,
+          quantity: item.quantity,
+          price_at_time: item.price
+        }));
+
+        const { error: itemsError } = await this.supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error('Failed to insert order items:', itemsError);
+        }
+
+        const batchesRepo = new BatchesRepository(this.supabase);
+        for (const item of orderData.items) {
+          try {
+            await batchesRepo.consumeBatches(
+              item.inventory_id,
+              item.quantity,
+              order.id,
+              orderData.pharmacy_id
+            );
+          } catch (batchError) {
+            console.error(`Failed to consume batches for item ${item.inventory_id}:`, batchError);
+          }
+        }
+      }
+
+      const invoicesRepo = new InvoicesRepository(this.supabase);
+      const invoice = await invoicesRepo.createInvoice(order.id);
+
+      return { order, invoice };
+    } catch (error) {
+      this.handleError(error, 'createWalkinOrder', orderData);
     }
   }
 
@@ -998,6 +1090,183 @@ export class ProfilesRepository extends BaseRepository {
 }
 
 /**
+ * Invoices repository
+ */
+export class InvoicesRepository extends BaseRepository {
+  protected getTableName(): string {
+    return 'invoices';
+  }
+
+  async generateInvoiceNumber(pharmacyId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    
+    const { data: lastInvoice, error: lastError } = await this.supabase
+      .from('invoices')
+      .select('invoice_number')
+      .ilike('invoice_number', `INV-${year}-%`)
+      .order('invoice_number', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (lastError && lastError.code !== 'PGRST116') {
+      throw lastError;
+    }
+
+    let nextNum = 1;
+    if (lastInvoice?.invoice_number) {
+      const parts = lastInvoice.invoice_number.split('-');
+      const lastNum = parseInt(parts[2], 10);
+      if (!isNaN(lastNum)) {
+        nextNum = lastNum + 1;
+      }
+    }
+
+    return `INV-${year}-${nextNum.toString().padStart(4, '0')}`;
+  }
+
+  async createInvoice(orderId: string): Promise<Invoice> {
+    const { data: order, error: orderError } = await this.supabase
+      .from('orders')
+      .select(`
+        *,
+        patient:patient_id(full_name, phone, address),
+        order_items(*)
+      `)
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) throw orderError;
+
+    const { data: pharmacy, error: pharmacyError } = await this.supabase
+      .from('profiles')
+      .select('full_name, phone, address, pharmacy_license')
+      .eq('id', order.pharmacy_id)
+      .single();
+
+    if (pharmacyError) throw pharmacyError;
+
+    const invoiceNumber = await this.generateInvoiceNumber(order.pharmacy_id);
+
+    let patientName = 'Unknown';
+    let patientPhone = null;
+    let patientAddress = null;
+
+    if (order.is_walkin) {
+      patientName = order.walkin_name || 'Walk-in Customer';
+      patientPhone = order.walkin_phone || null;
+      patientAddress = null;
+    } else {
+      patientName = order.patient?.full_name || 'Unknown';
+      patientPhone = order.patient?.phone || null;
+      patientAddress = order.patient?.address || null;
+    }
+
+    const invoiceData = {
+      invoice_number: invoiceNumber,
+      order_id: orderId,
+      pharmacy_id: order.pharmacy_id,
+      patient_id: order.patient_id,
+      patient_name: patientName,
+      patient_phone: patientPhone,
+      patient_address: patientAddress,
+      pharmacy_name: pharmacy.full_name || 'Pharmacy',
+      pharmacy_address: pharmacy.address || null,
+      pharmacy_phone: pharmacy.phone || null,
+      pharmacy_license: pharmacy.pharmacy_license || null,
+      subtotal: order.total_price,
+      tax_amount: 0,
+      discount_amount: 0,
+      total_amount: order.total_price,
+      status: 'issued' as InvoiceStatus,
+      invoice_date: new Date().toISOString()
+    };
+
+    const { data: invoice, error: invoiceError } = await this.supabase
+      .from('invoices')
+      .insert(invoiceData)
+      .select()
+      .single();
+
+    if (invoiceError) throw invoiceError;
+
+    await this.supabase
+      .from('orders')
+      .update({ invoice_id: invoice.id })
+      .eq('id', orderId);
+
+    return invoice;
+  }
+
+  async getInvoicesByPharmacy(
+    pharmacyId: string,
+    options?: { dateFrom?: string; dateTo?: string; status?: InvoiceStatus; searchQuery?: string }
+  ): Promise<Invoice[]> {
+    let query = this.supabase
+      .from('invoices')
+      .select('*')
+      .eq('pharmacy_id', pharmacyId)
+      .order('created_at', { ascending: false });
+
+    if (options?.dateFrom) {
+      query = query.gte('invoice_date', options.dateFrom);
+    }
+    if (options?.dateTo) {
+      query = query.lte('invoice_date', options.dateTo);
+    }
+    if (options?.status) {
+      query = query.eq('status', options.status);
+    }
+    if (options?.searchQuery) {
+      query = query.or(`patient_name.ilike.%${options.searchQuery}%,invoice_number.ilike.%${options.searchQuery}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }
+
+  async getInvoiceById(invoiceId: string): Promise<Invoice | null> {
+    const { data, error } = await this.supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
+  }
+
+  async getInvoiceByOrderId(orderId: string): Promise<Invoice | null> {
+    const { data, error } = await this.supabase
+      .from('invoices')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
+  }
+
+  async updateInvoiceStatus(invoiceId: string, status: InvoiceStatus): Promise<Invoice> {
+    const { data, error } = await this.supabase
+      .from('invoices')
+      .update({ status })
+      .eq('id', invoiceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+}
+
+/**
  * Repository factory
  */
 export function createRepositories(supabase: SupabaseClient) {
@@ -1008,5 +1277,6 @@ export function createRepositories(supabase: SupabaseClient) {
     connections: new ConnectionsRepository(supabase),
     profiles: new ProfilesRepository(supabase),
     batches: new BatchesRepository(supabase),
+    invoices: new InvoicesRepository(supabase),
   };
 }

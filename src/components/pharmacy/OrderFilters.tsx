@@ -5,8 +5,8 @@ import { Search, X, Calendar } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 interface OrderFiltersProps {
-  activeFilter: 'all' | 'patient' | 'pharmacy';
-  onFilterChange: (filter: 'all' | 'patient' | 'pharmacy') => void;
+  activeFilter: 'all' | 'patient' | 'pharmacy' | 'walkin';
+  onFilterChange: (filter: 'all' | 'patient' | 'pharmacy' | 'walkin') => void;
   searchQuery?: string;
   onSearchChange: (query: string) => void;
   dateFrom?: string;
@@ -36,6 +36,7 @@ export function OrderFilters({
     { id: 'all', label: 'All' },
     { id: 'patient', label: 'Patient' },
     { id: 'pharmacy', label: 'Yours' },
+    { id: 'walkin', label: 'Walk-in' },
   ] as const;
 
   const hasActiveFilters = searchQuery || dateFrom || dateTo;
