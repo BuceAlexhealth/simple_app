@@ -30,7 +30,7 @@ interface OrderItem {
 interface Order {
     id: string;
     created_at: string;
-    patient_id: string;
+    patient_id: string | null;
     pharmacy_id: string;
     total_price: number;
     status: string;

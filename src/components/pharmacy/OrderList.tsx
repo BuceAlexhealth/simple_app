@@ -8,7 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
 
 interface OrderListProps {
-  filter: 'all' | 'patient' | 'pharmacy';
+  filter: 'all' | 'patient' | 'pharmacy' | 'walkin';
   searchQuery?: string;
   dateFrom?: string;
   dateTo?: string;

@@ -20,7 +20,7 @@ interface OrderItem {
 }
 
 export interface UseOrdersOptions {
-  filter?: 'all' | 'patient' | 'pharmacy';
+  filter?: 'all' | 'patient' | 'pharmacy' | 'walkin';
   role?: 'pharmacist' | 'patient';
   searchQuery?: string;
   dateFrom?: string;
@@ -35,7 +35,7 @@ interface OrdersResponse {
 interface FetchOrdersParams {
   userId: string;
   role: 'pharmacist' | 'patient';
-  filter?: 'all' | 'patient' | 'pharmacy';
+  filter?: 'all' | 'patient' | 'pharmacy' | 'walkin';
   searchQuery?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -49,9 +49,13 @@ const fetchOrders = async (params: FetchOrdersParams): Promise<OrdersResponse> =
   if (filter === 'patient') initiatorType = 'patient';
   if (filter === 'pharmacy') initiatorType = 'pharmacy';
 
+  let isWalkin: boolean | undefined;
+  if (filter === 'walkin') isWalkin = true;
+
   const data = await handleAsyncError(
     () => ordersRepo.getOrdersByUserId(userId, role, {
       initiatorType,
+      isWalkin,
       searchQuery: searchQuery || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
