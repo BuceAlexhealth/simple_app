@@ -8,7 +8,9 @@ import {
   OrderStatus,
   InitiatorType,
   BatchMovementType,
-  UserRole
+  UserRole,
+  FulfillmentStatus,
+  OrderFulfillment
 } from "@/types";
 import { SupabaseError } from "@/types/supabase";
 
@@ -119,6 +121,9 @@ export class OrdersRepository extends BaseRepository {
     status?: OrderStatus;
     limit?: number;
     offset?: number;
+    searchQuery?: string;
+    dateFrom?: string;
+    dateTo?: string;
   } = {}): Promise<Order[]> {
     try {
       const idField = userRole === 'pharmacist' ? 'pharmacy_id' : 'patient_id';
@@ -127,6 +132,9 @@ export class OrdersRepository extends BaseRepository {
         .from("orders")
         .select(`
           *,
+          patient:patient_id (
+            full_name
+          ),
           order_items (
             *,
             inventory:inventory_id (
@@ -144,6 +152,21 @@ export class OrdersRepository extends BaseRepository {
         query = query.eq("status", filters.status);
       }
 
+      if (filters.dateFrom) {
+        query = query.gte("created_at", filters.dateFrom);
+      }
+
+      if (filters.dateTo) {
+        const dateToEnd = new Date(filters.dateTo);
+        dateToEnd.setHours(23, 59, 59, 999);
+        query = query.lte("created_at", dateToEnd.toISOString());
+      }
+
+      if (filters.searchQuery) {
+        const searchTerm = `%${filters.searchQuery}%`;
+        query = query.or(`id.ilike.${searchTerm},patient_id.ilike.${searchTerm}`);
+      }
+
       if (filters.limit) {
         query = query.limit(filters.limit);
       }
@@ -156,7 +179,22 @@ export class OrdersRepository extends BaseRepository {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      let orders = data || [];
+
+      if (filters.searchQuery) {
+        const searchLower = filters.searchQuery.toLowerCase();
+        orders = orders.filter((order: Order & { order_items: Array<{ inventory?: { name?: string } }> }) => {
+          const orderIdMatch = order.id.toLowerCase().includes(searchLower);
+          const patientIdMatch = order.patient_id?.toLowerCase().includes(searchLower);
+          const itemNameMatch = order.order_items?.some(
+            (item) => item.inventory?.name?.toLowerCase().includes(searchLower)
+          );
+          return orderIdMatch || patientIdMatch || itemNameMatch;
+        });
+      }
+
+      return orders;
     } catch (error) {
       this.handleError(error, 'getOrdersByUserId', { userId, userRole, filters });
     }
@@ -208,6 +246,85 @@ export class OrdersRepository extends BaseRepository {
       return data; // Returns order_id
     } catch (error) {
       this.handleError(error, 'processPharmacyOrder', orderData);
+    }
+  }
+
+  async updateOrderFulfillmentStatus(orderId: string, status: FulfillmentStatus, notes?: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from("orders")
+        .update({
+          fulfillment_status: status,
+          fulfillment_notes: notes || null
+        })
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'updateOrderFulfillmentStatus', { orderId, status });
+    }
+  }
+
+  async getOrderFulfillments(orderId: string): Promise<OrderFulfillment[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from("order_fulfillments")
+        .select(`
+          *,
+          batch:batch_id(*),
+          inventory:inventory_id(name, brand_name, form)
+        `)
+        .eq("order_id", orderId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getOrderFulfillments', { orderId });
+    }
+  }
+
+  async createFulfillment(fulfillmentData: {
+    order_id: string;
+    inventory_id: string;
+    batch_id?: string;
+    requested_qty: number;
+    fulfilled_qty: number;
+    notes?: string;
+    fulfilled_by?: string;
+  }): Promise<OrderFulfillment> {
+    try {
+      const { data, error } = await this.supabase
+        .from("order_fulfillments")
+        .insert(fulfillmentData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.handleError(error, 'createFulfillment', fulfillmentData);
+    }
+  }
+
+  async updateFulfillment(fulfillmentId: string, data: Partial<{
+    fulfilled_qty: number;
+    batch_id: string;
+    notes: string;
+  }>) {
+    try {
+      const { error } = await this.supabase
+        .from("order_fulfillments")
+        .update(data)
+        .eq("id", fulfillmentId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      this.handleError(error, 'updateFulfillment', { fulfillmentId, data });
     }
   }
 }
@@ -353,6 +470,80 @@ export class InventoryRepository extends BaseRepository {
 
   async deleteItem(itemId: string) {
     return this.delete(itemId);
+  }
+
+  async getLowStockItems(pharmacyId: string, threshold: number = 10) {
+    try {
+      const { data: inventory, error } = await this.supabase
+        .from("inventory")
+        .select("id, name, brand_name, form, price, stock")
+        .eq("pharmacy_id", pharmacyId)
+        .lte("stock", threshold)
+        .order("stock", { ascending: true });
+
+      if (error) throw error;
+      return inventory || [];
+    } catch (error) {
+      this.handleError(error, 'getLowStockItems', { pharmacyId, threshold });
+    }
+  }
+
+  async getCriticalStockItems(pharmacyId: string, criticalThreshold: number = 3) {
+    try {
+      const { data: inventory, error } = await this.supabase
+        .from("inventory")
+        .select("id, name, brand_name, form, price, stock")
+        .eq("pharmacy_id", pharmacyId)
+        .lte("stock", criticalThreshold)
+        .order("stock", { ascending: true });
+
+      if (error) throw error;
+      return inventory || [];
+    } catch (error) {
+      this.handleError(error, 'getCriticalStockItems', { pharmacyId });
+    }
+  }
+
+  async getOutOfStockItems(pharmacyId: string) {
+    try {
+      const { data: inventory, error } = await this.supabase
+        .from("inventory")
+        .select("id, name, brand_name, form, price, stock")
+        .eq("pharmacy_id", pharmacyId)
+        .eq("stock", 0)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      return inventory || [];
+    } catch (error) {
+      this.handleError(error, 'getOutOfStockItems', { pharmacyId });
+    }
+  }
+
+  async getExpiringBatches(pharmacyId: string, daysAhead: number = 30) {
+    try {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + daysAhead);
+      const futureDateStr = futureDate.toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data, error } = await this.supabase
+        .from("batches")
+        .select(`
+          *,
+          inventory:inventory_id(id, name, brand_name)
+        `)
+        .eq("pharmacy_id", pharmacyId)
+        .gt("remaining_qty", 0)
+        .gte("expiry_date", today)
+        .lte("expiry_date", futureDateStr)
+        .order("expiry_date", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      this.handleError(error, 'getExpiringBatches', { pharmacyId, daysAhead });
+    }
   }
 }
 

@@ -3,8 +3,8 @@ export const queryKeys = {
   session: ['session'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   
-  orders: (userId: string | undefined, role?: string) => 
-    ['orders', userId, role] as const,
+  orders: (userId: string | undefined, role?: string, searchQuery?: string, dateFrom?: string, dateTo?: string) => 
+    ['orders', userId, role, searchQuery, dateFrom, dateTo] as const,
   
   batches: (inventoryId: string | undefined) => 
     ['batches', inventoryId] as const,
@@ -35,6 +35,21 @@ export const queryKeys = {
   
   realtimeAnalytics: (pharmacyId: string | undefined) => 
     ['realtimeAnalytics', pharmacyId] as const,
+  
+  lowStockItems: (pharmacyId: string | undefined) => 
+    ['lowStockItems', pharmacyId] as const,
+  
+  criticalStockItems: (pharmacyId: string | undefined) => 
+    ['criticalStockItems', pharmacyId] as const,
+  
+  outOfStockItems: (pharmacyId: string | undefined) => 
+    ['outOfStockItems', pharmacyId] as const,
+  
+  expiringBatches: (pharmacyId: string | undefined) => 
+    ['expiringBatches', pharmacyId] as const,
+  
+  orderFulfillments: (orderId: string | undefined) => 
+    ['orderFulfillments', orderId] as const,
 } as const;
 
 export type QueryKey = typeof queryKeys;

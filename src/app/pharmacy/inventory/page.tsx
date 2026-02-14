@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/Input";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/Select";
 import { AnimatePresence, motion } from "framer-motion";
 import { InventoryItemCard } from "./InventoryItemCard";
-import { BatchManagementModal } from "@/components/pharmacy/BatchManagementModal";
 
 interface InventoryItem {
     id: string;
@@ -50,8 +49,6 @@ export default function InventoryPage() {
     const { user } = useUser();
     const { items, loading, refetch } = useInventory();
     const [isAdding, setIsAdding] = useState(false);
-    const [batchModalOpen, setBatchModalOpen] = useState(false);
-    const [selectedItemForBatch, setSelectedItemForBatch] = useState<{ id: string; name: string } | null>(null);
     const [batchInfo, setBatchInfo] = useState<BatchInfo>({});
 
     const [newItem, setNewItem] = useState<InventoryItemInput>({
@@ -74,6 +71,7 @@ export default function InventoryPage() {
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [isAddingWithBatch, setIsAddingWithBatch] = useState(false);
+    const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
 
     // Fetch batch info for all items
     useEffect(() => {
@@ -95,36 +93,58 @@ export default function InventoryPage() {
     }, [items]);
 
     const filteredItems = useMemo(() => {
-        return items.filter((item: InventoryItem) =>
+        let filtered = items.filter((item: InventoryItem) =>
             item.name.toLowerCase().includes(search.toLowerCase()) ||
             item.brand_name?.toLowerCase().includes(search.toLowerCase())
         );
-    }, [items, search]);
 
-    const stats = useMemo(() => [
-        { label: "Total Products", value: items.length },
-        {
-            label: "Inventory Value", value: `₹${items.reduce((sum, item) => {
+        if (stockFilter === "low") {
+            filtered = filtered.filter((item) => {
                 const info = batchInfo[item.id];
                 const stock = info?.totalStock ?? item.stock;
-                return sum + (item.price * stock);
-            }, 0).toLocaleString()}`
+                return stock > 0 && stock <= 10;
+            });
+        } else if (stockFilter === "out") {
+            filtered = filtered.filter((item) => {
+                const info = batchInfo[item.id];
+                const stock = info?.totalStock ?? item.stock;
+                return stock === 0;
+            });
+        }
+
+        return filtered;
+    }, [items, search, stockFilter, batchInfo]);
+
+    const stats = useMemo(() => [
+        { 
+            label: "Total Products", 
+            value: items.length,
+            active: stockFilter === "all",
+            onClick: () => setStockFilter("all")
         },
         {
-            label: "Low Stock", value: items.filter((i) => {
+            label: "Low Stock",
+            value: items.filter((i) => {
                 const info = batchInfo[i.id];
                 const stock = info?.totalStock ?? i.stock;
                 return stock > 0 && stock <= 10;
-            }).length, color: "warning" as const
+            }).length,
+            color: "warning" as const,
+            active: stockFilter === "low",
+            onClick: () => setStockFilter(stockFilter === "low" ? "all" : "low")
         },
         {
-            label: "Out of Stock", value: items.filter((i) => {
+            label: "Out of Stock",
+            value: items.filter((i) => {
                 const info = batchInfo[i.id];
                 const stock = info?.totalStock ?? i.stock;
                 return stock === 0;
-            }).length, color: "error" as const
+            }).length,
+            color: "error" as const,
+            active: stockFilter === "out",
+            onClick: () => setStockFilter(stockFilter === "out" ? "all" : "out")
         },
-    ], [items, batchInfo]);
+    ], [items, batchInfo, stockFilter]);
 
     async function handleAddItem() {
         try {
@@ -235,8 +255,6 @@ export default function InventoryPage() {
     }
 
     async function handleDeleteItem(id: string) {
-        if (!confirm("Are you sure you want to delete this item?")) return;
-
         const { inventory } = createRepositories(supabase);
         const success = await handleAsyncError(
             () => inventory.deleteItem(id),
@@ -253,8 +271,6 @@ export default function InventoryPage() {
         <PageContainer>
             {/* Header */}
             <PageHeader
-                icon={Boxes}
-                label="Inventory Management"
                 title="Stock Control"
                 subtitle="Manage your medicine availability and pricing"
             >
@@ -264,16 +280,17 @@ export default function InventoryPage() {
                 </Button>
             </PageHeader>
 
-            {/* Stats */}
+            {/* Stats - only show when items exist */}
             {!loading && items.length > 0 && (
-                <StatsGrid stats={stats} columns={4} />
+                <StatsGrid stats={stats} columns={3} />
             )}
 
             {/* Search */}
             <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search products by name or brand..."
+                placeholder="Search products..."
+                className="w-full"
             />
 
             {/* Add Product Form */}
@@ -304,7 +321,7 @@ export default function InventoryPage() {
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[var(--text-muted)]">Product Name *</label>
+                                        <label className="text-sm font-medium text-[var(--text-muted)]">Name *</label>
                                         <Input
                                             placeholder="e.g., Paracetamol 500mg"
                                             value={newItem.name}
@@ -314,7 +331,7 @@ export default function InventoryPage() {
                                         {addItemErrors.name && <p className="text-xs text-[var(--error)]">{addItemErrors.name}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[var(--text-muted)]">Brand Name</label>
+                                        <label className="text-sm font-medium text-[var(--text-muted)]">Brand</label>
                                         <Input
                                             placeholder="e.g., Crocin"
                                             value={newItem.brand_name || ""}
@@ -332,7 +349,7 @@ export default function InventoryPage() {
                                             value={newItem.form || ""}
                                             onChange={(value) => setNewItem({ ...newItem, form: value })}
                                         >
-                                            <SelectTrigger placeholder="Select form" className={addItemErrors.form ? 'border-[var(--error)]' : ''} />
+                                            <SelectTrigger placeholder="Select" className={addItemErrors.form ? 'border-[var(--error)]' : ''} />
                                             <SelectContent>
                                                 {["Tablet", "Capsule", "Syrup", "Injection", "Drop", "Cream", "Gel", "Ointment", "Powder", "Spray", "Other"].map(form => (
                                                     <SelectItem key={form} value={form}>{form}</SelectItem>
@@ -353,7 +370,7 @@ export default function InventoryPage() {
                                         {addItemErrors.price && <p className="text-xs text-[var(--error)]">{addItemErrors.price}</p>}
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium text-[var(--text-muted)]">Add Initial Batch</label>
+                                        <label className="text-sm font-medium text-[var(--text-muted)]">Initial Stock</label>
                                         <Button
                                             type="button"
                                             variant={isAddingWithBatch ? "default" : "outline"}
@@ -361,7 +378,7 @@ export default function InventoryPage() {
                                             className="w-full"
                                         >
                                             <Layers className="w-4 h-4 mr-2" />
-                                            {isAddingWithBatch ? "With Initial Batch" : "No Initial Stock"}
+                                            {isAddingWithBatch ? "Add Stock" : "Add Later"}
                                         </Button>
                                     </div>
                                 </div>
@@ -369,57 +386,51 @@ export default function InventoryPage() {
                                 {!isAddingWithBatch && (
                                     <div className="p-3 bg-[var(--info-bg)] text-[var(--info)] text-sm rounded-lg flex gap-2 items-start">
                                         <Layers className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                        <p>New products start with 0 stock. You can add batches later to increase stock.</p>
+                                        <p>💡 Tip: Add batches later to manage stock</p>
                                     </div>
                                 )}
 
                                 {/* Batch Fields */}
                                 {isAddingWithBatch && (
-                                    <div className="p-4 bg-[var(--surface-bg)] rounded-lg space-y-4 border border-[var(--border)]">
-                                        <p className="text-sm font-medium text-[var(--text-muted)]">Initial Batch Details</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-[var(--text-muted)]">Batch Code *</label>
+                                    <div className="p-4 bg-[var(--surface-bg)] rounded-lg space-y-3 border border-[var(--border)]">
+                                        <p className="text-sm font-medium text-[var(--text-muted)]">Batch Details</p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-[var(--text-muted)]">Code *</label>
                                                 <Input
-                                                    placeholder="e.g., BAT-2026-001"
+                                                    placeholder="BAT-001"
                                                     value={newBatch.batch_code}
                                                     onChange={(e) => setNewBatch({ ...newBatch, batch_code: e.target.value })}
-                                                    className={addBatchErrors.batch_code ? 'border-[var(--error)]' : ''}
+                                                    className="h-8"
                                                 />
-                                                {addBatchErrors.batch_code && <p className="text-xs text-[var(--error)]">{addBatchErrors.batch_code}</p>}
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-[var(--text-muted)]">Quantity *</label>
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-[var(--text-muted)]">Qty *</label>
                                                 <Input
                                                     type="number"
                                                     placeholder="0"
                                                     value={newBatch.quantity || ''}
                                                     onChange={(e) => setNewBatch({ ...newBatch, quantity: parseInt(e.target.value) || 0 })}
-                                                    className={addBatchErrors.quantity ? 'border-[var(--error)]' : ''}
+                                                    className="h-8"
                                                 />
-                                                {addBatchErrors.quantity && <p className="text-xs text-[var(--error)]">{addBatchErrors.quantity}</p>}
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-[var(--text-muted)]">Manufacturing Date *</label>
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-[var(--text-muted)]">Mfg *</label>
                                                 <Input
                                                     type="date"
                                                     value={newBatch.manufacturing_date}
                                                     onChange={(e) => setNewBatch({ ...newBatch, manufacturing_date: e.target.value })}
-                                                    className={addBatchErrors.manufacturing_date ? 'border-[var(--error)]' : ''}
+                                                    className="h-8"
                                                 />
-                                                {addBatchErrors.manufacturing_date && <p className="text-xs text-[var(--error)]">{addBatchErrors.manufacturing_date}</p>}
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-[var(--text-muted)]">Expiry Date *</label>
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-[var(--text-muted)]">Expiry *</label>
                                                 <Input
                                                     type="date"
                                                     value={newBatch.expiry_date}
                                                     onChange={(e) => setNewBatch({ ...newBatch, expiry_date: e.target.value })}
-                                                    className={addBatchErrors.expiry_date ? 'border-[var(--error)]' : ''}
+                                                    className="h-8"
                                                 />
-                                                {addBatchErrors.expiry_date && <p className="text-xs text-[var(--error)]">{addBatchErrors.expiry_date}</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -434,6 +445,16 @@ export default function InventoryPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Item Count */}
+            {!loading && items.length > 0 && (
+                <p className="text-sm text-[var(--text-muted)]">
+                    Showing <span className="font-medium text-[var(--text-main)]">{filteredItems.length}</span>
+                    {filteredItems.length !== items.length && (
+                        <span> of <span className="font-medium">{items.length}</span> products</span>
+                    )}
+                </p>
+            )}
 
             {/* Inventory List */}
             <AnimatedList
@@ -451,13 +472,6 @@ export default function InventoryPage() {
                                 onDelete={handleDeleteItem}
                                 batchCount={batchInfo[item.id]?.count || 0}
                                 totalStock={batchInfo[item.id]?.totalStock}
-                                onManageBatches={(itemId) => {
-                                    const itemInfo = items.find((i: InventoryItem) => i.id === itemId);
-                                    if (itemInfo) {
-                                        setSelectedItemForBatch({ id: itemId, name: itemInfo.name });
-                                        setBatchModalOpen(true);
-                                    }
-                                }}
                             />
                         </CardContent>
                     </Card>
@@ -468,26 +482,22 @@ export default function InventoryPage() {
                 emptyDescription="Start by adding your first product to the inventory."
                 searchTerm={search}
                 onClearSearch={() => setSearch("")}
+                filterActive={stockFilter !== "all" || search.length > 0}
+                filterEmptyTitle={search ? "No Results Found" : stockFilter === "low" ? "No Low Stock Items" : stockFilter === "out" ? "No Out of Stock Items" : "No Items"}
+                filterEmptyDescription={search ? "Try adjusting your search or filters" : stockFilter === "low" ? "All items have sufficient stock" : stockFilter === "out" ? "All items are in stock" : "Add products to your inventory"}
                 emptyAction={
-                    <Button onClick={() => setIsAdding(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add First Product
-                    </Button>
+                    stockFilter === "all" && search === "" ? (
+                        <Button onClick={() => setIsAdding(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add First Product
+                        </Button>
+                    ) : (
+                        <Button variant="outline" onClick={() => { setStockFilter("all"); setSearch(""); }}>
+                            Clear Filters
+                        </Button>
+                    )
                 }
             />
-
-            {/* Batch Management Modal */}
-            {selectedItemForBatch && (
-                <BatchManagementModal
-                    isOpen={batchModalOpen}
-                    onClose={() => {
-                        setBatchModalOpen(false);
-                        setSelectedItemForBatch(null);
-                    }}
-                    inventoryId={selectedItemForBatch.id}
-                    productName={selectedItemForBatch.name}
-                />
-            )}
         </PageContainer>
     );
 }

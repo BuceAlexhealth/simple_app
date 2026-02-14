@@ -16,6 +16,9 @@ interface AnimatedListProps<T> {
   emptyAction?: React.ReactNode;
   searchTerm?: string;
   onClearSearch?: () => void;
+  filterActive?: boolean;
+  filterEmptyTitle?: string;
+  filterEmptyDescription?: string;
   className?: string;
 }
 
@@ -30,6 +33,9 @@ export function AnimatedList<T>({
   emptyAction,
   searchTerm,
   onClearSearch,
+  filterActive,
+  filterEmptyTitle,
+  filterEmptyDescription,
   className = "space-y-4"
 }: AnimatedListProps<T>) {
   if (loading && items.length === 0) {
@@ -37,11 +43,13 @@ export function AnimatedList<T>({
   }
 
   if (items.length === 0) {
+    const title = filterActive && filterEmptyTitle ? filterEmptyTitle : emptyTitle;
+    const description = filterActive && filterEmptyDescription ? filterEmptyDescription : emptyDescription;
     return (
       <EmptyState
         icon={emptyIcon}
-        title={emptyTitle}
-        description={emptyDescription}
+        title={title}
+        description={description}
         action={emptyAction}
         searchTerm={searchTerm}
         onClearSearch={onClearSearch}

@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, ClipboardList } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { OrderCard } from "./OrderCard";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 
 interface OrderListProps {
   filter: 'all' | 'patient' | 'pharmacy';
+  searchQuery?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export function OrderList({ filter }: OrderListProps) {
+export function OrderList({ filter, searchQuery, dateFrom, dateTo }: OrderListProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const { orderItems, loading, filteredOrders, updateStatus } = useOrders({ filter });
+  const { orderItems, loading, filteredOrders, updateStatus } = useOrders({ filter, searchQuery, dateFrom, dateTo });
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -61,7 +63,7 @@ export function OrderList({ filter }: OrderListProps) {
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="animate-pulse">
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-4 space-y-4">
               <div className="flex justify-between">
                 <div className="space-y-2">
                   <div className="h-4 w-20 bg-[var(--border)] rounded" />
@@ -76,6 +78,8 @@ export function OrderList({ filter }: OrderListProps) {
     );
   }
 
+  const hasActiveFilters = searchQuery || dateFrom || dateTo;
+
   if (filteredOrders.length === 0) {
     return (
       <Card className="border-dashed">
@@ -84,10 +88,12 @@ export function OrderList({ filter }: OrderListProps) {
             <ClipboardList className="w-8 h-8 text-[var(--text-muted)]" />
           </div>
           <h3 className="text-xl font-semibold text-[var(--text-main)] mb-2">
-            No active orders
+            {hasActiveFilters ? 'No results found' : 'No active orders'}
           </h3>
           <p className="text-[var(--text-muted)] max-w-sm">
-            When customers place orders, they will appear here for you to process.
+            {hasActiveFilters 
+              ? 'Try adjusting your search or filters' 
+              : 'When customers place orders, they will appear here for you to process.'}
           </p>
         </CardContent>
       </Card>

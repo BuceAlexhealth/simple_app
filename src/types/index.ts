@@ -1,5 +1,6 @@
 export type OrderStatus = 'placed' | 'ready' | 'complete' | 'cancelled';
 export type InitiatorType = 'patient' | 'pharmacy';
+export type FulfillmentStatus = 'pending' | 'preparing' | 'completed' | 'partial' | 'cancelled';
 
 export type BatchMovementType = 'IN' | 'OUT' | 'ADJUST' | 'EXPIRED' | 'RETURN';
 
@@ -55,6 +56,26 @@ export interface Order {
     status: OrderStatus;
     initiator_type?: InitiatorType;
     pharmacy_notes?: string;
+    fulfillment_status?: FulfillmentStatus;
+    fulfillment_notes?: string;
+    patient?: {
+        full_name?: string;
+    };
+}
+
+export interface OrderFulfillment {
+    id: string;
+    order_id: string;
+    inventory_id: string;
+    batch_id?: string;
+    requested_qty: number;
+    fulfilled_qty: number;
+    notes?: string;
+    fulfilled_by?: string;
+    fulfilled_at?: string;
+    created_at?: string;
+    batch?: Batch;
+    inventory?: Partial<InventoryItem>;
 }
 
 export type UserRole = 'patient' | 'pharmacist' | 'admin';

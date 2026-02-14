@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Order, OrderStatus } from "@/types";
+import { Order, OrderStatus, InitiatorType } from "@/types";
 import { handleAsyncError, safeToast } from "@/lib/error-handling";
 import { createRepositories } from "@/lib/repositories";
 import { useUser } from "@/hooks/useAuth";
@@ -22,6 +22,9 @@ interface OrderItem {
 export interface UseOrdersOptions {
   filter?: 'all' | 'patient' | 'pharmacy';
   role?: 'pharmacist' | 'patient';
+  searchQuery?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 interface OrdersResponse {
@@ -29,11 +32,30 @@ interface OrdersResponse {
   orderItems: Record<string, OrderItem[]>;
 }
 
-const fetchOrders = async (userId: string, role: 'pharmacist' | 'patient' = 'pharmacist'): Promise<OrdersResponse> => {
+interface FetchOrdersParams {
+  userId: string;
+  role: 'pharmacist' | 'patient';
+  filter?: 'all' | 'patient' | 'pharmacy';
+  searchQuery?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+const fetchOrders = async (params: FetchOrdersParams): Promise<OrdersResponse> => {
+  const { userId, role, filter, searchQuery, dateFrom, dateTo } = params;
   const { orders: ordersRepo } = createRepositories(supabase);
 
+  let initiatorType: InitiatorType | undefined;
+  if (filter === 'patient') initiatorType = 'patient';
+  if (filter === 'pharmacy') initiatorType = 'pharmacy';
+
   const data = await handleAsyncError(
-    () => ordersRepo.getOrdersByUserId(userId, role),
+    () => ordersRepo.getOrdersByUserId(userId, role, {
+      initiatorType,
+      searchQuery: searchQuery || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    }),
     "Failed to fetch orders"
   );
 
@@ -109,10 +131,17 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
     error,
     refetch
   } = useQuery({
-    queryKey: queryKeys.orders(user?.id, role),
+    queryKey: queryKeys.orders(user?.id, role, options.searchQuery, options.dateFrom, options.dateTo),
     queryFn: () => {
       if (!user?.id) throw new Error("User not authenticated");
-      return fetchOrders(user.id, role);
+      return fetchOrders({
+        userId: user.id,
+        role,
+        filter: options.filter,
+        searchQuery: options.searchQuery,
+        dateFrom: options.dateFrom,
+        dateTo: options.dateTo,
+      });
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
@@ -140,25 +169,18 @@ export const useOrders = (options: UseOrdersOptions = {}) => {
       safeToast.success(`Order status updated to ${newStatus}`);
 
       // Invalidate and refetch orders
-      queryClient.invalidateQueries({ queryKey: queryKeys.orders(user?.id, role) });
+      queryClient.invalidateQueries({ queryKey: ['orders', user?.id] });
     },
     onError: (error: Error) => {
       safeToast.error(error.message || "Failed to update order status");
     }
   });
 
-  const filteredOrders = data?.orders?.filter(order => {
-    if (options.filter === 'all') return true;
-    if (options.filter === 'patient') return order.initiator_type !== 'pharmacy';
-    if (options.filter === 'pharmacy') return order.initiator_type === 'pharmacy';
-    return true;
-  }) || [];
-
   return {
     orders: data?.orders || [],
     orderItems: data?.orderItems || {},
     loading: isLoading,
-    filteredOrders,
+    filteredOrders: data?.orders || [],
     updateStatus: updateStatusMutation.mutate,
     refetch
   };
